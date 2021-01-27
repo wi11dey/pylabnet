@@ -2,6 +2,7 @@ from pyvisa import VisaIOError, ResourceManager
 
 from pylabnet.utils.logging.logger import LogHandler
 import numpy as np
+import traceback as tp
 import time
 
 
@@ -33,7 +34,9 @@ class Driver():
             device_id = self.device.query('*IDN?')
             self.log.info(f"Successfully connected to {device_id}.")
         except VisaIOError:
+            traceback = tp.format_exc()
             self.log.error(f"Connection to {gpib_address} failed.")
+            self.log.error(f"Traceback: {traceback}.")
 
         # reset to factory settings
         self.reset()

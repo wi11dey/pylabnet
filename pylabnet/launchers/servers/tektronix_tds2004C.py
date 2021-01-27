@@ -1,6 +1,6 @@
 from pylabnet.hardware.oscilloscopes.tektronix_tds2004C import Driver
 from pylabnet.network.client_server.tektronix_tds2004C import Service, Client
-from pylabnet.utils.helper_methods import *
+from pylabnet.utils.helper_methods import get_ip, load_device_config, setup_full_service
 
 
 def launch(**kwargs):

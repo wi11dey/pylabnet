@@ -278,6 +278,7 @@ def setup_full_service(service_class, module, logger=None, host='localhost'):
     service.assign_module(module)
     server, port = create_server(service, logger=logger, host=host)
     logger.update_data(data=dict(port=port))
+    logger.info(f'Launching server on host {host}, port {port}')
     server.start()
 
 def value_to_bitval(value, bits=8, min=0, max=1):

@@ -5,9 +5,6 @@ from ctypes import Structure
 import time
 from pylabnet.utils.logging.logger import LogHandler
 
-
-#from comtypes.typeinfo import SAFEARRAYABOUND
-
 #enum FT_Status
 FT_OK = ctypes.c_short(0x00)
 FT_InvalidHandle = ctypes.c_short(0x0)
@@ -68,35 +65,12 @@ class TLI_DeviceInfo(Structure):
                 ("isRack", ctypes.c_bool),
                 ("maxPaddles", ctypes.c_short)]
 
-# class TLI_HardwareInformation(Structure):
-#    _fields_ = [("serialNumber", ctypes.c_ulong),
-#               ("modelNumber", (8 * ctypes.c_char)),
-#                ("type",  ctypes.c_ushort),
-#                ("firmwareVersion", ctypes.c_ulong),
-#                ("notes", (48 * ctypes.c_char)),
-#                ("deviceDependantData", (12 * ctypes.c_byte)),
-#                ("hardwareVersion",  ctypes.c_ushort),
-#                ("modificationState",  ctypes.c_ushort),
-#                ("numChannels", ctypes.c_ushort)]
-	
 class TLI_PolarizerParameters(Structure):
     _fields_ = [("Velocity", ctypes.c_ushort),
                 ("HomePosition", ctypes.c_double),
                 ("JogSize1", ctypes.c_double),
                 ("JogSize2", ctypes.c_double),
-                ("JogSize3", ctypes.c_double)]
-
-#class SAFEARRAYBOUND(Strcuture):
-#    _fields_ = [("cElements" , ctypes.c_ulong),
- #               ("lLbound" , ctypes.c_long)]
-
-#class SAFEARRAY(Strcuture):
-#    _fields_ = [("cDims", ctypes.c_ushort),
-#                ("fFeatures", ctypes.c_ushort),
-#                ("cbElements", ctypes.c_ulong),
-#                ("cLocks", ctypes.c_ulong),
-#                ("pvData", ctypes.c_void_p),
-#                ("rgsabound", SAFEARRAYBOUND * 1)] 
+                ("JogSize3", ctypes.c_double)] 
 
 class Driver():
 
@@ -128,13 +102,14 @@ class Driver():
         #else:
         #    print("Device list created succesfully") #change these massages to interact with logger
 
-        self.dev_name = serialNos.value.decode("utf-8") #.strip().split(',')
+        #self.dev_name = serialNos.value.decode("utf-8") #.strip().split(',')
         #print(f"Connected to device {self.dev_name}")
 
         #get device info including serial number
-        self.device_info = TLI_DeviceInfo()  # container for device info
-        self._polarizationdll.TLI_GetDeviceInfo(serialNos[(device_num-1)*9:(device_num*9)-1], ctypes.byref(self.device_info)) #when there will be a few devices figure out how to seperate and access each one
-        self.device = serialNos[(device_num-1)*9:(device_num*9)-1]
+        #self.device_info = TLI_DeviceInfo()  # container for device info
+        #self._polarizationdll.TLI_GetDeviceInfo(serialNos[(device_num-1)*9:(device_num*9)-1], ctypes.byref(self.device_info)) #when there will be a few devices figure out how to seperate and access each one
+        #self.device = serialNos[(device_num-1)*9:(device_num*9)-1]
+        self.device = device_num.encode(encoding = 'utf-8') #for picking the device by device ID which is serial number
 
         #print("Description: ", self.device_info.description)
         #print("Serial No: ", self.device_info.serialNo)
@@ -205,7 +180,7 @@ class Driver():
         self._polarizationdll.MPC_GetStepsPerDegree.argtype = [ctypes.POINTER(ctypes.c_char)]
         self._polarizationdll.MPC_GetStepsPerDegree.result = ctypes.c_double
     
-        #wrap function for external use
+    #wrap function for external use
   
     def open(self):
         result = self._polarizationdll.MPC_Open(self.device)
@@ -231,20 +206,16 @@ class Driver():
 
 
     def move(self, paddle_num, pos, sleep_time):
-        #posinitial = self._polarizationdll.MPC_GetPosition(self.device,  self.paddles[paddle_num])
         move_result = self._polarizationdll.MPC_MoveToPosition(self.device,  self.paddles[paddle_num], pos) 
         time.sleep(abs(sleep_time*pos/170))
-        #posfinal = self._polarizationdll.MPC_GetPosition(self.device, self.paddles[paddle_num])
 
-        return move_result #, posinitial, posfinal
+        return move_result
 
     def move_rel(self, paddle_num, step, sleep_time):
-        #posinitial = self._polarizationdll.MPC_GetPosition(self.device, self.paddles[paddle_num])
         move_result = self._polarizationdll.MPC_MoveRelative(self.device, self.paddles[paddle_num], step) 
         time.sleep(abs(sleep_time*step/170))
-        #posfinal = self._polarizationdll.MPC_GetPosition(self.device, self.paddles[paddle_num])
 
-        return move_result #, posinitial, posfinal
+        return move_result
 
     def get_angle(self, paddle_num):
         currentpos = self._polarizationdll.MPC_GetPosition(self.device, self.paddles[paddle_num])

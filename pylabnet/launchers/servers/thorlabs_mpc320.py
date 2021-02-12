@@ -23,7 +23,8 @@ def launch(**kwargs):
     dev_num = settings['device_id']
 
     pol_paddle = Driver(
-    device_num=int(dev_num), 
+    #device_num=int(dev_num), 
+    device_num=dev_num,   
     logger=kwargs['logger']) 
 
     pol_paddle_service = Service()

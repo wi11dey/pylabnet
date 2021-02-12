@@ -50,7 +50,6 @@ class Controller:
         ))
 
 
-
         # Additional attributes
         self.prev_amplitude = [50]*self.NUM_CHANNELS
         self.prev_frequency = [30]*self.NUM_CHANNELS

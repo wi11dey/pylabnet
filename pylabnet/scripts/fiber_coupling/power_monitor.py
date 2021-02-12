@@ -7,10 +7,7 @@ from pylabnet.gui.pyqt.external_gui import Window
 from pylabnet.utils.logging.logger import LogHandler
 import pyqtgraph as pg
 from pylabnet.utils.helper_methods import generate_widgets, unpack_launcher, find_client, load_config, get_gui_widgets, load_script_config
-from pylabnet.network.client_server import thorlabs_pm320e
-
-# Time between power meter calls to prevent crashes
-BUFFER = 5e-3
+from pylabnet.network.client_server import thorlabs_mpc320
 
 class Monitor:
     RANGE_LIST = [
@@ -27,7 +24,6 @@ class Monitor:
         :calibration: (float) Calibration value for power meter.
         :name: (str) Humand-readable name of the power meter.
         """
-
 
         self.log = LogHandler(logger)
         self.gui =Window(
@@ -53,6 +49,7 @@ class Monitor:
             label_widget=2,
             name_label=1,
             combo_widget=2
+
         )
 
         self._initialize_gui()
@@ -153,7 +150,7 @@ class Monitor:
                 p_in = 0
                 split_in = (0, 0)
             try:
-                p_ref = self.pm.get_power(2)
+           9     p_ref = self.pm.get_power(2)
                 split_ref = split(p_ref)
             except OverflowError:
                 p_ref = 0

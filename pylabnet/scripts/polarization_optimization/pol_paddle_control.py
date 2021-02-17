@@ -35,6 +35,7 @@ class Controller:
         self.pm = pm_client
         self.log = LogHandler(logger=log_client)
         self.num_plots = 4
+        self.ir_index, self.rr_index = [], []  ##what?
 
         self.gui = Window(
             gui_template=gui,
@@ -68,30 +69,31 @@ class Controller:
         self._initialize_gui()
     
 
-    def sync_settings(self):
+    def initialize_parameters(self, channel, params):
+        #sets devices to gui parameters
+        
+        """ Updates wavelength, range of pm and velocity of pol paddle by values set in GUI"""  
 
-        """ Pulls current settings from PM and pol paddles and sets them to GUI """
+        self.pm.set_wavelength(1, params[3])
+        self.pm.set_wavelength(2,  params[3])
 
-        # Configure wavelength of power meter
-        self.wavelength = self.pm.get_wavelength(1)
-        self.widgets['wavelength'].setValue(
-            self.wavelengths
-        )
+#what?
+        if channel == 0:
+            if self.ir_index != range_index:
+                self.ir_index = range_index
+                self.pm.set_range(1, self.RANGE_LIST[self.ir_index])
+        elif channel == 1:
+             if self.rr_index != range_index:
+                self.rr_index = range_index
+                self.pm.set_range(2, self.RANGE_LIST[self.rr_index])
 
-        # Configure Range to be Auto
-        self.pm.set_range(1, self.RANGE_LIST[0])
-        self.pm.set_range(2, self.RANGE_LIST[0])
-        self.ir_index = 0
-        self.rr_index = 0
+    def _update_velocity(self):
+        """ Update velocity settings if comboox has been changed."""
 
-        #configure velocity of polariation paddles
-        #self.velocity = self.pol.get_velocity(1)
-        #self.widgets['velocity'].setValue(
-        #    self.velocity
-        #)
+            self.pol.set_velocity(params[2])
 
 
-    def _initialize_parameters
+    def get_GUI_parameters(self)
         #initialize parameters fom Gui widget to be later send to device
         return(
             range_index = self.widgets['range'].currentIndex()
@@ -155,35 +157,7 @@ class Controller:
 
 
         # Technical methods
-       """ Functions for devices actions.  paddle index (from 0)"""
-
-    def _update_wavelength(self):
-        """ Updates velovity of pm to WL of GUI"""  
-        if self.wavelength != gui_wavelength:
-            self.wavelength = gui_wavelength
-            self.pm.set_wavelength(1, self.wavelength)
-            self.pm.set_wavelength(2, self.wavelength)
-
-    def _update_range(self, channel):
-        """ Update range settings if combobox has been changed."""
-
-        if channel == 0:
-        if self.ir_index != range_index:
-                self.ir_index = range_index
-                self.pm.set_range(1, self.RANGE_LIST[self.ir_index])
-        elif channel == 1:
-             if self.rr_index != range_index:
-                self.rr_index = range_index
-                self.pm.set_range(2, self.RANGE_LIST[self.rr_index])
-
-    def _update_velocity(self):
-        """ Update velocity settings if comboox has been changed."""
-
-        if self.velocity != gui_velocity:
-            self.velocity = gui_velocity
-            self.pol.set_velocity(1, self.velocity)
-            self.pol.set_velocity(2, self.velocity)
-
+       """ Functions for devices actions in relation to widget.  paddle index (from 0)"""
 
     def _home(self, paddle)
         self.pol.home(self, paddle, self.gui_sleep_time)
@@ -273,9 +247,8 @@ def launch(**kwargs):
     control = Controller(pol_client, pm_client, gui_client, logger, config=kwargs['config'], port=kwargs['server_port'])
 
     # Initialize parameters
-    for paddle_index in range(control.NUM_CHANNELS):
-        params = control.get_GUI_parameters(paddle_index)
-        control.initialize_parameters(paddle_index, params)
+    params = control.get_GUI_parameters()
+    control.initialize_parameters(channel,params)
 
     try:
         control.load_settings()

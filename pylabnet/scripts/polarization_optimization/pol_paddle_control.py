@@ -7,6 +7,7 @@ from pylabnet.utils.logging.logger import LogHandler
 import pyqtgraph as pg
 from pylabnet.utils.helper_methods import generate_widgets, unpack_launcher, find_client, load_config, get_gui_widgets, load_script_config
 from pylabnet.network.client_server import thorlabs_mpc320, thorlabs_pm320e
+from pylabnet.scrtptes.fiber_coupling.power_monitor import PMInterface as PM_Interface
 
 
 class Controller:
@@ -18,12 +19,6 @@ class Controller:
         'R10MW', 'R100MW', 'R1W', 'R10W', 'R100W', 'R1KW'
     ]
 
-    #NUM_PADDLES = 9
-    #WIDGET_DICT = dict(
-    #    home=NUM_CHANNELS, move_rel=NUM_CHANNELS, move_to=NUM_CHANNELS,
-    #    optimize=NUM_CHANNELS, get_power=NUM_CHANNELS, velocity=NUM_CHANNELS,
-    #    step_num = NUM_CHANNELS, converge_parameter = NUM_CHANNELS
-    #)
 
     def __init__(self, paddles_client, pm_client, gui='pol_paddles', logger=None, calibration=None, name=None, port=None):
         """ Instantiates the controller for one pol paddles device with 3 paddles with GUI
@@ -39,6 +34,8 @@ class Controller:
         self.paddles = [0,1,2]
         self.pm = pm_client
         self.log = LogHandler(logger=log_client)
+        self.num_plots = 4
+
         self.gui = Window(
             gui_template=gui,
             host=socket.gethostbyname(socket.gethostname()),
@@ -51,10 +48,21 @@ class Controller:
         # Get all GUI widgets
         self.widgets = get_gui_widgets(
             self.gui,
-            graph_widget= 4,   #was num_plots in power_monitor
-            spin_box= 14,
-            name_label= 11,
-            combo_widget = 2           #choose paddle
+            graph_widget= self.num_plots,   
+            velocity = 1
+            wavelength = 1 #for power meter
+            angle_steps = 1 #number of angles to scan for optimization precedure
+            iterations = 1 #number of iterations for optimization precedure
+            converge_parameter = 1 #for optimization precedure
+            optimize_all = 1 #runs the code to optimize the power.
+            #name_label= 11,
+            combo_widget = 3 # 1- paddle (pol paddles), 2- channel (PM), 3 - range (PM)
+            move_to = 3  #one for each paddle
+            move_rel_step = 3 #spin_box type. defines step of movement relative of paddle. One for each paddle
+            around_angle = 3  #spin_box type. defines around what angle to optimize the spefici paddle. One for each paddle
+            optimize_around = 3 #push button type. Optimizes around a specific angle a specific paddle.
+            home = 3    #push butto. Homes paddles - moves paddle to center angle. One for each paddle
+            text_edit = 3 #text edit with angle of paddle. One for each paddle
         )
 
         self._initialize_gui()
@@ -66,8 +74,8 @@ class Controller:
 
         # Configure wavelength of power meter
         self.wavelength = self.pm.get_wavelength(1)
-        self.widgets['number_widget'][-1].setValue(
-            self.wavelength
+        self.widgets['wavelength'].setValue(
+            self.wavelengths
         )
 
         # Configure Range to be Auto
@@ -77,70 +85,28 @@ class Controller:
         self.rr_index = 0
 
         #configure velocity of polariation paddles
-        self.velocity = self.pol.get_velocity(1)
-        self.widgets['spin_box'][6].setValue(
-            self.velocity
+        #self.velocity = self.pol.get_velocity(1)
+        #self.widgets['velocity'].setValue(
+        #    self.velocity
+        #)
+
+
+    def _initialize_parameters
+        #initialize parameters fom Gui widget to be later send to device
+        return(
+            range_index = self.widgets['range'].currentIndex()
+            gui_velocity = self.widgets['velocity'].value()
+            gui_wavelength = self.widgets['wavelength'].value()
+            gui_angle_steps = self.widgets['angle_steps'].value()
+            gui_iterations = self.widgets['iterations'].value()
+            gui_converge_parameter = self.widgets['converge_parameter'].value()
+            gui_sleep_time = self.widgets['sleep_time'].value()
+
+            for paddle in self.paddles
+                gui_around[paddle] = self.widgets['around_angle'][paddle].value()
+                gui_step[paddle] = self.widgets['move_rel_step'][paddle].value()
         )
 
-        # Connect wavelength change action.
-        self.widgets['number_widget'][-1].valueChanged.connect(self._update_wavelength)
-
-        # Connect range change.
-        self.widgets['combo_widget'][0].currentIndexChanged.connect(lambda: self._update_range(0))
-        self.widgets['combo_widget'][1].currentIndexChanged.connect(lambda: self._update_range(1))
-
-        #connect velocity pol paddles
-        self.widgets['number_widget'][???].valueChanged.connect(self._update_velocity)
-
-
-        # Configure angle of paddles in GUI (do we want this or onlygraphic?)
-        for paddle in self.paddles
-            self.angle = self.pol.get_angle(paddle)
-            self.widgets['number_widget'][-1].setValue(
-            self.angle
-        )
-
-    def _update_wavelength(self):
-        """ Updates velovity of pm to WL of GUI"""
-
-        gui_wl = self.widgets['number_widget'][-1].value()
-
-        if self.wavelength != gui_wl:
-            self.wavelength = gui_wl
-            self.pm.set_wavelength(1, self.wavelength)
-            self.pm.set_wavelength(2, self.wavelength)
-
-    def _update_range(self, channel):
-        """ Update range settings if combobox has been changed."""
-
-        range_index = self.widgets['combo_widget'][channel].currentIndex()
-
-        if channel == 0:
-        if self.ir_index != range_index:
-                self.ir_index = range_index
-                self.pm.set_range(1, self.RANGE_LIST[self.ir_index])
-        elif channel == 1:
-             if self.rr_index != range_index:
-                self.rr_index = range_index
-                self.pm.set_range(2, self.RANGE_LIST[self.rr_index])
-
-    def _update_velocity(self):
-        """ Update velocity settings if number widget has been changed."""
-
-        gui_velocity = self.widgets['number_widget'][-1].value()
-
-        if self.velocity != gui_velocity:
-            self.velocity = gui_velocity
-            self.pol.set_velocity(1, self.velocity)
-            self.pol.set_velocity(2, self.velocity)
-
-    #faster option.shorter:
-    def initialize_parameters(self, velocity, channel, p_range):
-        #Initializes parameters such as wavelength for power meter, velocity for paddles
-
-        self.pol.set_velocity(velocity) 
-        self.pm.set_range(channel, p_range)
-       
         #Understand graphics:
             # Update GUI
             for plot_no in range(self.num_plots):
@@ -170,39 +136,74 @@ class Controller:
         
         for paddle in self.paddles:
 
-            # Mote_to buttons
+            # Mote buttons
             self.widgets['move_to'][paddle].pressed.connect(
-                lambda channel=channel_no: self._move_rel(paddale)
+                lambda channel=channel_no: self._move_rel(paddle, self.gui_step, self.gui_sleep_time) #get step and sleep_time
             )
+            self.widgets['home'][paddle].pressed.connect(
+                lambda channel=channel_no: self._home(paddle) #get step and sleep_time
+
+            #add optimize around
+
+        self.widgets['optimize_all'].pressed.connect(
+            lambda channel=channel_no: self._optimize() #get step and sleep_time
+
+        #parameters that need to be updated in PM or pol paddles
+        self.widgets['wavelength'].valueChanged.connect(self._update_wavelength)
+        self.widgets['range'].currentIndexChanged.connect(lambda: self._update_range(0)) #why did we have two in poer_monitor
+        self.widgets['velocity'].currentIndexChanged.connect(self._update_velocity)
+
+
         # Technical methods
-       """ Sets the pos on the GUI to the current value measured by the controller
-        :param paddle: (int) paddle index (from 0)"""
+       """ Functions for devices actions.  paddle index (from 0)"""
+
+    def _update_wavelength(self):
+        """ Updates velovity of pm to WL of GUI"""  
+        if self.wavelength != gui_wavelength:
+            self.wavelength = gui_wavelength
+            self.pm.set_wavelength(1, self.wavelength)
+            self.pm.set_wavelength(2, self.wavelength)
+
+    def _update_range(self, channel):
+        """ Update range settings if combobox has been changed."""
+
+        if channel == 0:
+        if self.ir_index != range_index:
+                self.ir_index = range_index
+                self.pm.set_range(1, self.RANGE_LIST[self.ir_index])
+        elif channel == 1:
+             if self.rr_index != range_index:
+                self.rr_index = range_index
+                self.pm.set_range(2, self.RANGE_LIST[self.rr_index])
+
+    def _update_velocity(self):
+        """ Update velocity settings if comboox has been changed."""
+
+        if self.velocity != gui_velocity:
+            self.velocity = gui_velocity
+            self.pol.set_velocity(1, self.velocity)
+            self.pol.set_velocity(2, self.velocity)
+
 
     def _home(self, paddle)
+        self.pol.home(self, paddle, self.gui_sleep_time)
 
-        self.pol.home(self, paddle, sleep_time)
-    
-    def _move_rel(self, paddle_num, step, sleep_time):
-        self.pol.move_rel(self, paddle, step, sleep_time)
-        self.widgets['move_to'][paddle].setValue(step)
-        self.widgets['move_to'][paddle].setStyleSheet(
-                'background-color:black'
+    def _move_rel(self, paddle):
+        self.pol.move_rel(self, paddle, self.gui_step[paddle], self.gui_sleep_time)
+        self.widgets['move_rel_step'][paddle].setValue(self.gui_step[paddle])
 
-    def _move(self, paddle_num):
-        self.pol.move_rel(self, paddle, step_to, sleep_time)
-        self.widgets['move_to'][paddle].setValue(step_to_to)
-        self.widgets['move_to'][paddle].setStyleSheet(
-                'background-color:black'
+    def _move(self, paddle):
+        self.pol.move(self, paddle, location)
+        self.widgets['move_rel_step'][paddle].setValue(location)
+
+        #can add a check that movement worked
 
     def _show_pos(self,paddle)
-     """ Sets the pos on the GUI to the current value measured by the controller
-     :param paddle: (int) paddle index (from 0)"""
-
         pos = self.pol.get_angle(paddle)      
         self.widgets['angle'][paddle].setValue(pos)
 
-    def _optimize(self, paddle, iteration_num, step_num, converge_parameter, sleep_time, channel):
-        """ Optimize code for paddles - finding optimize angle for each paddle """
+    def _optimize(self):
+        """ Optimize code for paddles - finding optimize angles for all paddle """
         
         count = 0
         iter_count = 0  #initialized to zero and gro as step in angles as taken in an single iteration
@@ -215,27 +216,29 @@ class Controller:
 
         for paddle in self.paddles:
             deviate = 170 #range of angle to scan
-            step_size = deviate/step_num
-            move_in = self.move_rel(paddle, -deviate/2, sleep_time)
-            while iter_count < iteration_num:
+            step_size = deviate/self.gui_angle_steps
+            self.gui_step[paddle] = -deviate/2
+            move_in = self.move_rel(paddle)
+            while iter_count < self.gui_iterations:
                 if iter_count >= 1:
-                    move = self.move(paddle, ang[iter_count-1]-deviate/2, sleep_time)
-                while count < step_num:
-                    mover = self.move_rel(paddle, step_size, sleep_time)
+                    move = self.move(paddle, ang[iter_count-1]-deviate/2)
+                while count < self.gui_angle_steps:
+                    self.gui_step[paddle] = step_size
+                    mover = self.move_rel(paddle)
                     PosF = self.show_pos(paddle)
                     current_power = self.get_power(channel)
                     power.extend([current_power])
                     angle.extend([PosF])
                     count += 1
-                plt.figure((paddle+1)*iteration_num)
+                plt.figure((paddle+1)*self.gui_iterations)
                 plt.title(f"paddle # {paddle} , iteration # {iter_count}.")
                 plt.plot(angle, power, "or")
                 max_index = np.argmax(power)
                 ang.extend([angle[max_index]]) 
         if iter_count >= 1:
-            if abs(ang[iter_count] - ang[iter_count-1]) < converge_parameter:
+            if abs(ang[iter_count] - ang[iter_count-1]) < self.gui_converge_parameter:
                 self.widgets['optimization converged'][paddle].setChecked(True)
-                move = self.move(paddle, angle[max_index], sleep_time)
+                move = self.move(paddle, angle[max_index])
                 count = 0
                 iter_count = 0
                 power = []
@@ -243,7 +246,7 @@ class Controller:
                 break
 
             deviate = deviate/2
-            step_size = deviate/step_num
+            step_size = deviate/self.gui_iterations
             iter_count += 1
             count = 0
 
@@ -251,83 +254,6 @@ class Controller:
         power_paddles.extend(power)
         ang = []
         iter_count = 0
-
- 
-
-class polInterface:
-
-    def __init__(self, client, config:dict=None):
-
-
-class PMInterface:
-    """
-    Interface class to allow other modules to be called in same
-    way as a Thorlabs power meter
-
-    Currently supports NI AI with power calibration curve via config
-    power (uW) = m*(x-z) + b
-    """
-
-    def __init__(self, client, config:dict=None):
-
-        self.client = client
-        self.config = config
-    
-        if isinstance(self.client, thorlabs_pm320e.Client):
-            self.type = 'thorlabs_pm320e'
-        else:
-            self.type = 'nidaqmx'
-            self.channels = [
-                self.config['input']['channel'],
-                self.config['reflection']['channel']
-            ]
-            self.m = [
-                self.config['input']['m'],
-                self.config['reflection']['m']
-            ]
-            self.b = [
-                self.config['input']['b'],
-                self.config['reflection']['b']
-            ]
-            self.z = [
-                self.config['input']['z'],
-                self.config['reflection']['z']
-            ]
-
-    def get_power(self, channel):
-
-        if self.type == 'thorlabs_pm320e':
-            return self.client.get_power(channel)
-        else:
-            index = channel - 1
-            return ((self.m[index]
-                     * (self.client.get_ai_voltage(self.channels[index])[0]
-                        -self.z[index]))
-                    + self.b[index])*1e-6
-
-    def get_wavelength(self, channel):
-        if self.type == 'thorlabs_pm320e':
-            return self.client.get_wavelength(channel)
-        else:
-            return 737
-
-    def get_range(self, channel):
-        if self.type == 'thorlabs_pm320e':
-            return self.client.get_range(channel)
-        else:
-            return 'AUTO'
-
-    def set_wavelength(self, channel, wavelength):
-        if self.type == 'thorlabs_pm320e':
-            return self.client.set_wavelength(channel, wavelength)
-        else:
-            return
-
-    def set_range(self, channel, p_range):
-        if self.type == 'thorlabs_pm320e':
-            return self.client.set_range(channel, p_range)
-        else:
-            return
 
 
 def launch(**kwargs):

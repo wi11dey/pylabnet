@@ -36,5 +36,5 @@ class ServiceBase(rpyc.Service):
             handle = ctypes.windll.kernel32.OpenProcess(1, False, pid)
             ctypes.windll.kernel32.TerminateProcess(handle, -1)
             ctypes.windll.kernel32.CloseHandle(handle)
-        elif operating_system == 'Linux':
+        elif operating_system in ('Linux', 'mac_os'):
             os.kill(pid, signal.SIGTERM)

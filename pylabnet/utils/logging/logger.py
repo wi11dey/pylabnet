@@ -177,7 +177,7 @@ class LogClient:
 
                     if self.operating_system == 'Windows':
                         key = os.path.join(os.environ['WINDIR'], 'System32', key)
-                    elif self.operating_system == 'Linux':
+                    elif self.operating_system in ('Linux', 'mac_os'):
                         key = os.path.join('/etc/ssl/certs', key)
                     cert=key
                     self._connection = rpyc.ssl_connect(
@@ -466,7 +466,7 @@ class LogService(rpyc.Service):
             handle = ctypes.windll.kernel32.OpenProcess(1, False, pid)
             ctypes.windll.kernel32.TerminateProcess(handle, -1)
             ctypes.windll.kernel32.CloseHandle(handle)
-        elif operating_system == 'Linux':
+        elif operating_system in ('Linux', 'mac_os'):
             os.kill(pid, signal.SIGTERM)
 
     def add_logfile(self, name, dir_path, file_level=logging.DEBUG, form_string=None):

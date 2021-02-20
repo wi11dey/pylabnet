@@ -64,7 +64,7 @@ class ClientBase:
             else:
                 if self.operating_system == 'Windows':
                     key = os.path.join(os.environ['WINDIR'], 'System32', key)
-                elif self.operating_system == 'Linux':
+                elif self.operating_system in ('Linux', 'mac_os'):
                     key = os.path.join('/etc/ssl/certs', key)
                 else:
                     raise UnsupportedOSException()

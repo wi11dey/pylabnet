@@ -762,7 +762,7 @@ def launch_device_server(server, dev_config, log_ip, log_port, server_port, debu
     operating_system = get_os()
     if operating_system == 'Windows':
         cmd = f'{start}"{python_path}" "{launch_path}" '
-    elif operating_system == 'Linux':
+    elif operating_system in ('Linux', 'mac_os'):
         cmd = f'{python_path} {launch_path} '
     else:
         raise UnsupportedOSException
@@ -814,7 +814,7 @@ def launch_script(script, config, log_ip, log_port, debug_flag, server_debug_fla
         cmd = f'start "{script}_server, '
         cmd += time.strftime("%Y-%m-%d, %H:%M:%S", time.gmtime())
         cmd += f'" "{sys.executable}" "{launch_path}" '
-    elif operating_system == 'Linux':
+    elif operating_system in ('Linux', 'mac_os'):
         cmd = f'{sys.executable} {launch_path} '
     else:
         raise UnsupportedOSException
@@ -854,7 +854,7 @@ def get_ip():
             else:
                 return filtered_ip[0]
 
-    elif operating_system == 'Linux':
+    elif operating_system in ('Linux', 'mac_os'):
         try:
             network_interface = load_config('network_config')['network_interface']
         except AttributeError:

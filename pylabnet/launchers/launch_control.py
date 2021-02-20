@@ -83,7 +83,7 @@ class Controller:
 
         self.main_window = LaunchWindow(self.app, self, gui_template=self.LOGGER_UI)
         self.main_window.stop_button.clicked.connect(self._kill)
-        if self.operating_system not in ['Linux', 'Windows']:
+        if self.operating_system not in ['Linux', 'Windows', 'mac_os']:
             raise UnsupportedOSException
         try:
             if sys.argv[1] == '-m' or master:

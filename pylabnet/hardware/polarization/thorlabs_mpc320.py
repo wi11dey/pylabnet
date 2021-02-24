@@ -2,6 +2,7 @@
 import ctypes
 from ctypes import wintypes
 from ctypes import Structure
+import os
 import time
 from pylabnet.utils.logging.logger import LogHandler
 
@@ -46,19 +47,19 @@ MOT_Reverse = ctypes.c_short(0x02)
 MOT_TravelDirection = ctypes.c_short
 
 #enum MPC_IOModes
-MPC_ToggleOnPositiveEdge = ctypes.c_ulong(0x01) 
-MPC_SetPositionOnPositiveEdge = ctypes.c_ulong(0x02) 
-MPC_OutputHighAtSetPosition = ctypes.c_ulong(0x04) 
-MPC_OutputHighWhemMoving = ctypes.c_ulong(0x08) 
+MPC_ToggleOnPositiveEdge = ctypes.c_ulong(0x01)
+MPC_SetPositionOnPositiveEdge = ctypes.c_ulong(0x02)
+MPC_OutputHighAtSetPosition = ctypes.c_ulong(0x04)
+MPC_OutputHighWhemMoving = ctypes.c_ulong(0x08)
 MPC_IOModes = ctypes.c_ulong
 
 class TLI_DeviceInfo(Structure):
     _fields_ = [("typeID", ctypes.c_ulong),
-                ("description", (65* ctypes.c_char)), #changed from 65* _char 
-                ("serialNo", (9* ctypes.c_char)), #changed from 9* _char 
+                ("description", (65* ctypes.c_char)), #changed from 65* _char
+                ("serialNo", (9* ctypes.c_char)), #changed from 9* _char
                 ("PID", ctypes.c_ulong),# wintypes.DWORD
                 ("isKnownType", ctypes.c_bool),
-                ("motorType", MOT_MotorTypes), 
+                ("motorType", MOT_MotorTypes),
                 ("isPiezoDevice", ctypes.c_bool),
 		        ("isLaser", ctypes.c_bool),
                 ("isCustomType", ctypes.c_bool),
@@ -70,7 +71,7 @@ class TLI_PolarizerParameters(Structure):
                 ("HomePosition", ctypes.c_double),
                 ("JogSize1", ctypes.c_double),
                 ("JogSize2", ctypes.c_double),
-                ("JogSize3", ctypes.c_double)] 
+                ("JogSize3", ctypes.c_double)]
 
 class Driver():
 
@@ -81,29 +82,35 @@ class Driver():
 
         # Instantiate log.
         self.log = LogHandler(logger=logger)
+
+
+        # Specify dll loading path (new for python 3.8)
+        current_filepath = os.path.dirname(os.path.realpath(__file__))
+        os.add_dll_directory(f"{current_filepath}")
+
         #Loads polarization contorolles DLL and define arguments and result 5types for c function
-        self._polarizationdll = ctypes.cdll.LoadLibrary('Thorlabs.MotionControl.Polarizer.dll')  
+        self._polarizationdll = ctypes.cdll.LoadLibrary('Thorlabs.MotionControl.Polarizer.dll')
         self._devmanagerdll = ctypes.cdll.LoadLibrary('Thorlabs.MotionControl.DeviceManager.dll')
         self._configure_functions()
-        
+
 
         #get device list size
         if self._polarizationdll.TLI_BuildDeviceList() == 0:
             num_devs = self._polarizationdll.TLI_GetDeviceListSize()
-            #print(f"There are {num_devs} devices connected")    
-        
+            #self.log.info(f"There are {num_devs} devices connected")
+
         #Get devices serial numbers
         serialNos = ctypes.create_string_buffer(100) #the way to have a mutable buffer
-        serialNosSize = ctypes.c_ulong(ctypes.sizeof(serialNos)) 
+        serialNosSize = ctypes.c_ulong(ctypes.sizeof(serialNos))
         List = self._polarizationdll.TLI_GetDeviceListByTypeExt(serialNos, serialNosSize, 38)
 
         #if List:
-        #    print("Failed to get device list")
+        #    self.log.info("Failed to get device list")
         #else:
-        #    print("Device list created succesfully") #change these massages to interact with logger
+        #    self.log.info("Device list created succesfully") #change these massages to interact with logger
 
         #self.dev_name = serialNos.value.decode("utf-8") #.strip().split(',')
-        #print(f"Connected to device {self.dev_name}")
+        #self.log.info(f"Connected to device {self.dev_name}")
 
         #get device info including serial number
         #self.device_info = TLI_DeviceInfo()  # container for device info
@@ -111,23 +118,23 @@ class Driver():
         #self.device = serialNos[(device_num-1)*9:(device_num*9)-1]
         self.device = device_num.encode(encoding = 'utf-8') #for picking the device by device ID which is serial number
 
-        #print("Description: ", self.device_info.description)
-        #print("Serial No: ", self.device_info.serialNo)
-        #print("Motor Type: ", self.device_info.motorType)
-        #print("USB PID: ", self.device_info.PID)
-        #print("Max Number of Paddles: ", self.device_info.maxPaddles)
-        
+        #self.log.info("Description: ", self.device_info.description)
+        #self.log.info("Serial No: ", self.device_info.serialNo)
+        #self.log.info("Motor Type: ", self.device_info.motorType)
+        #self.log.info("USB PID: ", self.device_info.PID)
+        #self.log.info("Max Number of Paddles: ", self.device_info.maxPaddles)
+
         #establising connection to device
         self.paddles = [paddle1, paddle3, paddle2]
-    
+
 
         connection = self._polarizationdll.MPC_Open(self.device)
         if connection == 0:
             self.log.info(f"Successfully connected to {self.device}.")
-        else:        
+        else:
             self.log.error(f"Connection to {self.device} failed due to error {connection}.")
 
-        
+
     #technical methods
 
     def _configure_functions(self):
@@ -140,19 +147,19 @@ class Driver():
         self._polarizationdll.TLI_GetDeviceInfo.argtypes = [ctypes.POINTER(ctypes.c_char), ctypes.POINTER(TLI_DeviceInfo)]
         self._polarizationdll.TLI_GetDeviceInfo.restype = ctypes.c_short
         self._polarizationdll.TLI_GetDeviceListByTypeExt.argtypes =[ctypes.POINTER(ctypes.c_char),ctypes.c_ulong, ctypes.c_int]
-        self._polarizationdll.TLI_GetDeviceListByTypeExt.restype = ctypes.c_short      
+        self._polarizationdll.TLI_GetDeviceListByTypeExt.restype = ctypes.c_short
         self._polarizationdll.MPC_Open.argtype = ctypes.POINTER(ctypes.c_char)
         self._polarizationdll.MPC_Open.restype = ctypes.c_short
         self._polarizationdll.MPC_Close.argtype = ctypes.POINTER(ctypes.c_char)
         self._polarizationdll.MPC_Close.restype = ctypes.c_short
         self._polarizationdll.MPC_CheckConnection.argtype = ctypes.c_char_p
-        self._polarizationdll.MPC_CheckConnection.restype = ctypes.c_bool           
+        self._polarizationdll.MPC_CheckConnection.restype = ctypes.c_bool
         self._polarizationdll.MPC_GetPosition.argtypes = [ctypes.POINTER(ctypes.c_char), POL_Paddles]
         self._polarizationdll.MPC_GetPosition.restype = ctypes.c_double
         self._polarizationdll.MPC_RequestPolParams.argtype = ctypes.POINTER(ctypes.c_char)
         self._polarizationdll.MPC_RequestPolParams.restype = ctypes.c_short
-        self._polarizationdll.MPC_GetPolParams.argtypes = [ctypes.POINTER(ctypes.c_char), ctypes.POINTER(TLI_PolarizerParameters)] 
-        self._polarizationdll.MPC_GetPolParams.restype = ctypes.c_short 
+        self._polarizationdll.MPC_GetPolParams.argtypes = [ctypes.POINTER(ctypes.c_char), ctypes.POINTER(TLI_PolarizerParameters)]
+        self._polarizationdll.MPC_GetPolParams.restype = ctypes.c_short
         self._polarizationdll.MPC_SetPolParams.argtypes = [ctypes.POINTER(ctypes.c_char), ctypes.POINTER(TLI_PolarizerParameters)]
         self._polarizationdll.MPC_SetPolParams.restype = ctypes.c_short
         self._polarizationdll.MPC_SetJogSize.argtypes =  [ctypes.POINTER(ctypes.c_char), POL_Paddles, ctypes.c_double]
@@ -171,7 +178,7 @@ class Driver():
         self._polarizationdll.MPC_Jog.restype = ctypes.c_short
         self._polarizationdll.MPC_StartPolling.argtypes = [ctypes.POINTER(ctypes.c_char), ctypes.c_int]
         self._polarizationdll.MPC_StartPolling.restype = ctypes.c_bool
-        self._polarizationdll.MPC_StopPolling.argtype = ctypes.POINTER(ctypes.c_char)   
+        self._polarizationdll.MPC_StopPolling.argtype = ctypes.POINTER(ctypes.c_char)
         self._polarizationdll.MPC_StopPolling.restype = ctypes.c_void_p #did not find the a c_void with no pointer as needed
         self._polarizationdll.MPC_SetVelocity.argtypes = [ctypes.POINTER(ctypes.c_char), ctypes.c_short]
         self._polarizationdll.MPC_SetVelocity.restype = ctypes.c_short
@@ -179,26 +186,26 @@ class Driver():
         self._polarizationdll.MPC_MoveRelative.restype = ctypes.c_short
         self._polarizationdll.MPC_GetStepsPerDegree.argtype = [ctypes.POINTER(ctypes.c_char)]
         self._polarizationdll.MPC_GetStepsPerDegree.result = ctypes.c_double
-    
+
     #wrap function for external use
-  
+
     def open(self):
         result = self._polarizationdll.MPC_Open(self.device)
         if result == 0:
-            print("Connected succesfully to device")
+            self.log.info("Connected succesfully to device")
         else:
-            print("A problem occured when trying to connect to device")
+            self.log.info("A problem occured when trying to connect to device")
 
     def close(self):
         resultc = self._polarizationdll.MPC_Close(self.device)
         if resultc == 0:
-            print("Closed connection to device")
+            self.log.info("Closed connection to device")
         else:
-            print("A problem occured when trying to diconnect from device")
+            self.log.info("A problem occured when trying to diconnect from device")
 
     def home(self, paddle_num):
         home_result = self._polarizationdll.MPC_Home(self.device, self.paddles[paddle_num])
-        
+
         return home_result
 
     def set_velocity(self, velocity):
@@ -206,18 +213,18 @@ class Driver():
 
 
     def move(self, paddle_num, pos, sleep_time):
-        move_result = self._polarizationdll.MPC_MoveToPosition(self.device,  self.paddles[paddle_num], pos) 
+        move_result = self._polarizationdll.MPC_MoveToPosition(self.device,  self.paddles[paddle_num], pos)
         time.sleep(abs(sleep_time*pos/170))
 
         return move_result
 
     def move_rel(self, paddle_num, step, sleep_time):
-        move_result = self._polarizationdll.MPC_MoveRelative(self.device, self.paddles[paddle_num], step) 
+        move_result = self._polarizationdll.MPC_MoveRelative(self.device, self.paddles[paddle_num], step)
         time.sleep(abs(sleep_time*step/170))
 
         return move_result
 
     def get_angle(self, paddle_num):
         currentpos = self._polarizationdll.MPC_GetPosition(self.device, self.paddles[paddle_num])
-        
+
         return currentpos

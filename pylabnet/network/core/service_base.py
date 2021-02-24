@@ -1,4 +1,5 @@
 import rpyc
+from abc import abstractmethod
 import os
 import ctypes
 import signal
@@ -27,8 +28,17 @@ class ServiceBase(rpyc.Service):
     def assign_logger(self, logger=None):
         self.log = LogHandler(logger=logger)
 
+    def close_hardware_connection(self):
+        """ Device specific function closing the hardware connection between host PC and hardware.
+        Will be overwritten in the hardware specific client implementation.
+        """
+        pass
+
     def close_server(self):
         """ Closes the server for which the service is running """
+
+        # Close the hardware connection
+        self.close_hardware_connection()
 
         pid = os.getpid()
         operating_system = get_os()

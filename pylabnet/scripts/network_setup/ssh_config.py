@@ -1,5 +1,5 @@
 from pylabnet.utils.helper_methods import unpack_launcher
-from pylabnet.utils.helper_methods import show_console, hide_console, load_config
+from pylabnet.utils.helper_methods import hide_console, load_config
 import paramiko
 from decouple import config
 import time
@@ -18,7 +18,7 @@ def launch(**kwargs):
     for host in hosts:
 
         # Initiate SSH connection
-        hostname = host['hostname']
+        hostname = f"\'{host['hostname']}\'"
         host_ip = host['ip']
 
         logger.info(f"Starting SSH connection to {hostname}@{host_ip}")

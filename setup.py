@@ -42,7 +42,9 @@ setup(
     entry_points={
         'console_scripts': [
             'pylabnet=pylabnet.launchers.launch_control:main',
-            'pylabnet_proxy=pylabnet.launchers.launch_control:main_proxy'
+            'pylabnet_proxy=pylabnet.launchers.launch_control:main_proxy',
+            'pylabnet_master=pylabnet.launchers.launch_control:main_master',
+            'pylabnet_staticproxy =pylabnet.launchers.launch_control:main_staticproxy'
             ]
         },
     classifiers=[
@@ -57,6 +59,7 @@ setup(
         'decorator>=4.4.0',
         'ipywidgets>=7.5.1',
         'matplotlib>=3.1.3',
+        'netifaces>=0.10.9',
         'nidaqmx>=0.5.7',
         'numpy>=1.16.5',
         'paramiko>=2.7.2',
@@ -66,11 +69,12 @@ setup(
         'pyqtgraph>=0.10.0',
         'pyserial>=3.4',
         'python-decouple>=3.3',
+        'python-kasa>=0.4.0.dev2',
         'pytz>=2019.3',
         'PyVISA>=1.10.1',
         'qdarkstyle>=2.8.1',
         'rpyc>=4.1.2',
         'si_prefix>=1.2.2',
-        'simpleeval>=0.9.10'
+        'simpleeval>=0.9.10',
     ]
 )

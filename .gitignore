@@ -33,6 +33,8 @@ MANIFEST
 *.manifest
 *.spec
 
+*.dll
+
 # Installer logs
 pip-log.txt
 pip-delete-this-directory.txt
@@ -141,6 +143,7 @@ pylabnet/hardware/counter/swabian_instruments/__pycache__/*
 pylabnet/scripts/staticline_gui_test/test.py
 pylabnet/hardware/smartact/SmarActCTL.dll
 pylabnet/hardware/smartact/zlib1.dll
+
 
 # Bash scripts
 pylabnet/launchers/pylabnet_proxy.cmd

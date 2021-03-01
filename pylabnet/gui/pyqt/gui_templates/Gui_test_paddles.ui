@@ -1,0 +1,318 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1226</width>
+    <height>777</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>MainWindow</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <widget class="QPushButton" name="optimize_around_p1">
+    <property name="geometry">
+     <rect>
+      <x>100</x>
+      <y>537</y>
+      <width>141</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Optimize around</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="move_to_p1">
+    <property name="geometry">
+     <rect>
+      <x>100</x>
+      <y>590</y>
+      <width>93</width>
+      <height>28</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Move to</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="home_p1">
+    <property name="geometry">
+     <rect>
+      <x>100</x>
+      <y>640</y>
+      <width>93</width>
+      <height>28</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Home</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="optimize_p1">
+    <property name="geometry">
+     <rect>
+      <x>100</x>
+      <y>490</y>
+      <width>93</width>
+      <height>28</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Optimize </string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="move_to_p2">
+    <property name="geometry">
+     <rect>
+      <x>570</x>
+      <y>580</y>
+      <width>93</width>
+      <height>28</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Move to</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="optimize_around_p2">
+    <property name="geometry">
+     <rect>
+      <x>570</x>
+      <y>527</y>
+      <width>141</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Optimize around</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="home_p2">
+    <property name="geometry">
+     <rect>
+      <x>570</x>
+      <y>630</y>
+      <width>93</width>
+      <height>28</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Home</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="optimize_p2">
+    <property name="geometry">
+     <rect>
+      <x>570</x>
+      <y>480</y>
+      <width>93</width>
+      <height>28</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Optimize </string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="optimize_p3">
+    <property name="geometry">
+     <rect>
+      <x>990</x>
+      <y>473</y>
+      <width>93</width>
+      <height>28</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Optimize </string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="move_to_p3">
+    <property name="geometry">
+     <rect>
+      <x>990</x>
+      <y>573</y>
+      <width>93</width>
+      <height>28</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Move to</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="optimize_around_p3">
+    <property name="geometry">
+     <rect>
+      <x>990</x>
+      <y>520</y>
+      <width>141</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Optimize around</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="home_p3">
+    <property name="geometry">
+     <rect>
+      <x>990</x>
+      <y>623</y>
+      <width>93</width>
+      <height>28</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Home</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="paddle_1">
+    <property name="geometry">
+     <rect>
+      <x>130</x>
+      <y>130</y>
+      <width>55</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Paddle 1</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="paddle_2">
+    <property name="geometry">
+     <rect>
+      <x>570</x>
+      <y>130</y>
+      <width>55</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Paddle 2</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="paddle_3">
+    <property name="geometry">
+     <rect>
+      <x>1000</x>
+      <y>120</y>
+      <width>55</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Paddle 3</string>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="device_1">
+    <property name="geometry">
+     <rect>
+      <x>100</x>
+      <y>10</y>
+      <width>81</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>device 1</string>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="device_2">
+    <property name="geometry">
+     <rect>
+      <x>100</x>
+      <y>40</y>
+      <width>81</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>device 2</string>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="device_3">
+    <property name="geometry">
+     <rect>
+      <x>100</x>
+      <y>70</y>
+      <width>81</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>device 3</string>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="device_4">
+    <property name="geometry">
+     <rect>
+      <x>230</x>
+      <y>10</y>
+      <width>81</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>device 4</string>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="device_5">
+    <property name="geometry">
+     <rect>
+      <x>230</x>
+      <y>40</y>
+      <width>81</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>device 5</string>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="device_6">
+    <property name="geometry">
+     <rect>
+      <x>230</x>
+      <y>70</y>
+      <width>81</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>device 6</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="optimize_all_p">
+    <property name="geometry">
+     <rect>
+      <x>700</x>
+      <y>50</y>
+      <width>93</width>
+      <height>28</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Optimize_all_p</string>
+    </property>
+   </widget>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>1226</width>
+     <height>26</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

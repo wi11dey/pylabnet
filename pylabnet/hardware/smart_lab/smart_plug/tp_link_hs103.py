@@ -92,3 +92,6 @@ class Driver():
             return current_plug_type, alias
         else:
             self.log.error(f"Could not find plug location {channel_id} in smart_plug_config.json.")
+
+
+d = Driver(channels=[])

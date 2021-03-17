@@ -5,15 +5,15 @@ import time
 from pylabnet.gui.pyqt.external_gui import Window
 from pylabnet.utils.logging.logger import LogHandler
 import pyqtgraph as pg
-import pyqtgraph as PlotWidget, plot
+import pyqtgraph as PlotWidget   #, plot  #check what's plot here
 from pylabnet.utils.helper_methods import generate_widgets, unpack_launcher, find_client, load_config, get_gui_widgets, load_script_config
 from pylabnet.network.client_server import thorlabs_mpc320, thorlabs_pm320e
-from pylabnet.scrtptes.fiber_coupling.power_monitor import PMInterface as PM_Interface
+from pylabnet.scripts.fiber_coupling.power_monitor import PMInterface as PM_Interface
 
-
+ 
 class Controller:
 
-""" A script class for controlling mpc320 polarization paddles + thorlabs_pm320 power meter + interfacing with GUI"""
+    """ A script class for controlling mpc320 polarization paddles + thorlabs_pm320 power meter + interfacing with GUI"""
     
     RANGE_LIST = [
         'AUTO', 'R1NW', 'R10NW', 'R100NW', 'R1UW', 'R10UW', 'R100UW', 'R1MW',
@@ -44,7 +44,7 @@ class Controller:
             gui_template=gui,
             host=socket.gethostbyname(socket.gethostname()),
             port=port
-
+        )
         self.gui.apply_stylesheet()
 
         # add some defenitions
@@ -53,22 +53,22 @@ class Controller:
         self.widgets = get_gui_widgets(
             self.gui,
             graph_widget= self.num_plots,   
-            velocity = 1
-            wavelength = 1 #for power meter
-            angle_steps = 1 #number of angles to scan for optimization precedure
-            iterations = 1 #number of iterations for optimization precedure
-            converge_parameter = 1 #for optimization precedure
-            optimize_all = 1 #runs the code to optimize the power.
+            velocity = 1,
+            wavelength = 1, #for power meter
+            angle_steps = 1, #number of angles to scan for optimization precedure
+            iterations = 1, #number of iterations for optimization precedure
+            converge_parameter = 1, #for optimization precedure
+            optimize_all = 1, #runs the code to optimize the power.
             #name_label= 11,
-            combo_widget = 4 # 1- paddle (pol paddles), 2- channel (PM), 3 - range input (PM)  range reflected (PM)
-            move_to = 3  #Movement to position. one for each paddle
-            step_by = 3  #Relative movement. one for each paddle
-            move_pos = 3 #spin_box type. defines step of movement relative of paddle. One for each paddle
-            step_size = 3 #spin_box type. defines step of movement relative of paddle. One for each paddle
-            around_angle = 3  #spin_box type. defines around what angle to optimize the spefici paddle. One for each paddle
-            optimize_around = 3 #push button type. Optimizes around a specific angle a specific paddle.
-            home = 3    #push butto. Homes paddles - moves paddle to center angle. One for each paddle
-            text_edit = 3 #text edit with angle of paddle. One for each paddle
+            combo_widget = 4, # 1- paddle (pol paddles), 2- channel (PM), 3 - range input (PM)  range reflected (PM)
+            move_to = 3,  #Movement to position. one for each paddle
+            step_by = 3,  #Relative movement. one for each paddle
+            move_pos = 3, #spin_box type. defines step of movement relative of paddle. One for each paddle
+            step_size = 3, #spin_box type. defines step of movement relative of paddle. One for each paddle
+            around_angle = 3,  #spin_box type. defines around what angle to optimize the spefici paddle. One for each paddle
+            optimize_around = 3, #push button type. Optimizes around a specific angle a specific paddle.
+            home = 3,    #push butto. Homes paddles - moves paddle to center angle. One for each paddle
+            text_edit = 3, #text edit with angle of paddle. One for each paddle
             get_angle = 3
         )
 
@@ -93,39 +93,45 @@ class Controller:
 
     def _update_velocity(self):
         """ Update velocity settings if comboox has been changed."""
-            self.pol.set_velocity(params[3])
+        self.pol.set_velocity(params[3])
 
-    def get_GUI_parameters(self)
+    def get_GUI_parameters(self):
         #initialize parameters fom Gui widget to be later send to device
+        for paddle in self.paddles:
+            gui_around[paddle] = self.widgets['around_angle'][paddle].value()
+            gui_pos[paddle] = self.widgets['move_pos'][paddle].value()
+            gui_step[paddle] = self.widgets['step_size'][paddle].value()
+
         return(
-            range_index_i = self.widgets['combo_widget'][3].currentIndex()
-            range_index_r = self.widgets['combo_widget'][4].currentIndex()
-            gui_velocity = self.widgets['velocity'].value()
-            gui_wavelength = self.widgets['wavelength'].value()
-            gui_angle_steps = self.widgets['angle_steps'].value()
-            gui_iterations = self.widgets['iterations'].value()
-            gui_converge_parameter = self.widgets['converge_parameter'].value()
-            gui_sleep_time = self.widgets['sleep_time'].value()
-
-            for paddle in self.paddles
-                gui_around[paddle] = self.widgets['around_angle'][paddle].value()
-                gui_pos[paddle] = self.widgets['move_pos'][paddle].value()
-                gui_step[paddle] = self.widgets['step_size'][paddle].value()
-
+            self.widgets['combo_widget'][3].currentIndex(), #range_index_i
+            self.widgets['combo_widget'][4].currentIndex(), #range_index_r = 
+            self.widgets['velocity'].value(), #gui_velocity 
+            self.widgets['wavelength'].value(), #gui_wavelength  
+            self.widgets['angle_steps'].value(), # gui_angle_steps 
+            self.widgets['iterations'].value(), #gui_iterations  
+            self.widgets['converge_parameter'].value(), #gui_converge_parameter  
+            self.widgets['sleep_time'].value(), #gui_sleep_time =
+            gui_around[0],
+            gui_pos[0],
+            gui_step[0],
+            gui_around[1],
+            gui_pos[1],
+            gui_step[1],
+            gui_around[2],
+            gui_step[2],
+            gui_pos[2],
         )
 
-        #Understand graphics:
-            # Update GUI
-            for plot_no in range(self.num_plots):
-                # Update Number
-                self.widgets['number_widget'][plot_no].setValue(formatted_values[plot_no])
+        # Update GUI
+        for plot_no in range(self.num_plots): # Update Number
+            self.widgets['number_widget'][plot_no].setValue(formatted_values[plot_no])
 
-                # Update Curve
-                self.plotdata[plot_no] = np.append(self.plotdata[plot_no][1:], values[plot_no])
-                self.widgets[f'curve_{plot_no}'].setData(self.plotdata[plot_no])
+         # Update Curve
+            self.plotdata[plot_no] = np.append(self.plotdata[plot_no][1:], values[plot_no])
+            self.widgets[f'curve_{plot_no}'].setData(self.plotdata[plot_no])
 
-                if plot_no < 2:
-                    self.widgets["label_widget"][plot_no].setText(f'{value_prefixes[plot_no]}W')
+            if plot_no < 2:
+                self.widgets["label_widget"][plot_no].setText(f'{value_prefixes[plot_no]}W')
 
     def _initialize_gui(self):
         """ Instantiates GUI by assigning widgets """
@@ -137,6 +143,7 @@ class Controller:
            # Create a curve and store the widget in our dictionary
             self.widgets[f'curve_{plot_no}'] = self.widgets['graph_widget'][plot_no].plot(
                 pen=pg.mkPen(color=self.gui.COLOR_LIST[0])
+            )
 
     def _setup_gui(self):
         """ Configures what all buttons do """
@@ -145,21 +152,24 @@ class Controller:
 
             # Mote buttons
             self.widgets['move_to'][paddle].pressed.connect(
-               self._move(paddle, self.gui_pos, self.gui_sleep_time) #get step and sleep_time
+                self._move(paddle, self.gui_pos, self.gui_sleep_time) #get step and sleep_time
             )
 
             self.widgets['step_by'][paddle].pressed.connect(
-               self._move_rel(paddle, self.gui_step, self.gui_sleep_time) #get step and sleep_time
+               self._move_rel(paddle, self.gui_step, self.gui_sleep_time)
+            ) #get step and sleep_time
+            
+
+            self.widgets['home'][paddle].pressed.connect(self._home(paddle)
+            ) #get step and sleep_time
+
+            self.widget['get angle'][paddle].pressed.connect(self._show_pos(paddle)
             )
-
-            self.widgets['home'][paddle].pressed.connect(self._home(paddle) #get step and sleep_time
-
-            self.widget['get angle'][paddle].pressed.connect(self._show_pos(paddle))
 
             #add optimize around
 
-        self.widgets['optimize_all'].pressed.connect(
-            self._optimize()) #get step and sleep_time
+        self.widgets['optimize_all'].pressed.connect(self._optimize()
+        ) #gept step and sleep_time
 
         #parameters that need to be updated in PM or pol paddles
         self.widgets['wavelength'].valueChanged.connect(self._update_wavelength)
@@ -168,9 +178,9 @@ class Controller:
         self.widgets['velocity'].currentIndexChanged.connect(self._update_velocity)
 
         # Technical methods
-       """ Functions for devices actions in relation to widget.  paddle index (from 0)"""
+        """ Functions for devices actions in relation to widget paddle index (from 0)"""
 
-    def _home(self, paddle)
+    def _home(self, paddle):
         self.pol.home(self, paddle, self.gui_sleep_time)
 
     def _move_rel(self, paddle):
@@ -183,7 +193,7 @@ class Controller:
 
         #can add a check that movement worked
 
-    def _show_pos(self,paddle)
+    def _show_pos(self,paddle):
         pos = self.pol.get_angle(paddle)      
         self.widgets['angle'][paddle].setValue(pos)
 
@@ -266,28 +276,28 @@ class Controller:
                 self.widgets['graph_widget'][paddle+1].plot(angle, power, symbol = 'o', color = 'r' ) 
                 max_index = np.argmax(power)
                 ang.extend([angle[max_index]]) 
-        if iter_count >= 1:
-            if abs(ang[iter_count] - ang[iter_count-1]) < self.gui_converge_parameter:
-                self.widgets['optimization converged'][paddle].setChecked(True)
-                self.gui_pos[paddle] = angle[max_index]
-                move = self.move(paddle)
+                if iter_count >= 1:
+                    if abs(ang[iter_count] - ang[iter_count-1]) < self.gui_converge_parameter:
+                        self.widgets['optimization converged'][paddle].setChecked(True)
+                        self.gui_pos[paddle] = angle[max_index]
+                        move = self.move(paddle)
+                        count = 0
+                        iter_count = 0
+                        power = []
+                        angle = []
+                        break
+
+                deviate = deviate/2
+                step_size = deviate/self.gui_iterations
+                iter_count += 1
                 count = 0
-                iter_count = 0
-                power = []
-                angle = []
-                break
 
-            deviate = deviate/2
-            step_size = deviate/self.gui_iterations
-            iter_count += 1
-            count = 0
+            ang_paddles.extend(ang)
+            power_paddles.extend(power)
+            ang = []
+            iter_count = 0
 
-        ang_paddles.extend(ang)
-        power_paddles.extend(power)
-        ang = []
-        iter_count = 0
-
-
+ 
 def launch(**kwargs):
     """ Launches the full nanopositioner control + GUI script """
 

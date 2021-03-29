@@ -1360,6 +1360,11 @@ class PulseMaster:
                 return
         elif sweep_type == "Duration":
             
+            # TODO YQ TO FIX IN FUTURE?
+            self.showerror("Duration sweep is not supported at the moment")
+            return
+            # TODO YQ: end
+
             if current_pb.pulse_specifiers[pulse_index].pulsevar_dict["dur_var"]:
                 self.showerror(f"Cannot sweep duration as it has a ticked 'var' checkbox.")
                 return

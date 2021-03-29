@@ -217,3 +217,10 @@ class PulsedExperiment():
             sequence = sequence_string,
             marker_string = marker_string
         )
+
+        self.cmd_table = {
+                "$schema": "￼http://docs.zhinst.com/hdawg/commandtable/v2/schema",
+                "header": {"version": "0.2"},
+                "table": [] 
+            }
+        

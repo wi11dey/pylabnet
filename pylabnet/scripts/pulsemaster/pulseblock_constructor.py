@@ -104,6 +104,8 @@ class PulseblockConstructor():
             self.append_value_to_dict(var_dict, "mod_ph", arg_dict)
 
             self.append_value_to_dict(var_dict, "iq", params_dict)
+            self.append_value_to_dict(var_dict, "sweep", params_dict)
+
             supported_pulses = {
                 "PTrue" : po.PTrue,
                 "PSin" : po.PSin,
@@ -151,6 +153,23 @@ class PulseblockConstructor():
             else:
                 arg_dict_list = [arg_dict]
 
+            # Handle case where we have parameter sweep 
+            if "sweep" in params_dict:
+                sweep_type, sweep_min, sweep_max, sweep_steps = params_dict["sweep"]
+
+                # TODO YQ: Fix this when we support duration sweeps
+                if sweep_type != "Amplitude":
+                    self.log.error("Only amplitude sweep supported currently!")
+
+                # Store the sweep params inside the pulse params dict
+                for arg_dict in arg_dict_list:
+                    arg_dict["params"].update({
+                        "sweep": True,
+                        "sweep_type": sweep_type,
+                        "sweep_min": sweep_min,
+                        "sweep_max": sweep_max,
+                        "sweep_steps": sweep_steps
+                    })
 
             # Construct a pulse and add it to the pulseblock
             # The iteration over arg_dict takes care of the IQ mixing case

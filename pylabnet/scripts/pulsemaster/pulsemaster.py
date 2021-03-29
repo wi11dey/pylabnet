@@ -1269,7 +1269,8 @@ class PulseMaster:
         and are removed otherwise. """
 
         current_pb_constructor = self.get_current_pb_constructor()
-        dropdown = self.widgets['sweep_params_form'].itemAt(1).widget()
+        sweep_params = self.widgets['sweep_params_form']
+        dropdown = sweep_params.itemAt(1).widget()
 
         # Remember previous sweep var before clearing
         prev_sweep_var = dropdown.currentText()
@@ -1298,6 +1299,29 @@ class PulseMaster:
             if not found:
                 self.clear_sweep_params()
 
+        # Load sweep params from the current PB if present
+        found = 0 
+        for idx, pulse_spec in enumerate(current_pb_constructor.pulse_specifiers):
+            if "sweep" in pulse_spec.pulsevar_dict:
+                if found > 0:
+                    self.showerror("More than 1 sweep found!")
+                    return
+
+                sweep_type, min_val, max_val, num_points = pulse_spec.pulsevar_dict["sweep"]
+
+                uid = str(hash(pulse_spec.uid))[:4]
+                dropdown.setCurrentText(f"({idx}, {uid}, '{pulse_spec.pulsetype}', '{sweep_type}')")
+
+                sweep_params.itemAt(3).widget().setText(str(min_val))
+                sweep_params.itemAt(5).widget().setText(str(max_val))
+                sweep_params.itemAt(7).widget().setText(str(num_points))
+
+                # Not necessary since we're writing the same data back, but
+                # this will help to lock the fields as if "add sweep" was pressed.
+                self.add_sweep() 
+
+                found += 1
+
     def add_sweep_vars(self, idx, pulse_spec):
         """ Add the parameters for the given pulse specifier into the dropdown
         box for sweep parameters. 
@@ -1313,7 +1337,7 @@ class PulseMaster:
         # UUID has many repeated digits)
         uid = str(hash(pulse_spec.uid))[:4]
         dropdown.addItem(f"({idx}, {uid}, '{pulse_spec.pulsetype}', 'Amplitude')")
-        dropdown.addItem(f"({idx}, {uid}, '{pulse_spec.pulsetype}', 'Length')")
+        dropdown.addItem(f"({idx}, {uid}, '{pulse_spec.pulsetype}', 'Duration')")
 
     def add_sweep(self):
         """ Add the currently-set sweep parameters to the pulseblock. """
@@ -1327,14 +1351,15 @@ class PulseMaster:
             return
         
         sweep_var = literal_eval(dropdown.currentText())
-        min_val, max_val, num_points = validated[1:4]
+        min_val, max_val, num_points = validated[1:]
         pulse_index, sweep_type = sweep_var[0], sweep_var[-1]
 
         if sweep_type == "Amplitude":
             if current_pb.pulse_specifiers[pulse_index].pulsevar_dict["amp_var"]:
                 self.showerror(f"Cannot sweep amplitude as it has a ticked 'var' checkbox.")
                 return
-        elif sweep_type == "Length":
+        elif sweep_type == "Duration":
+            
             if current_pb.pulse_specifiers[pulse_index].pulsevar_dict["dur_var"]:
                 self.showerror(f"Cannot sweep duration as it has a ticked 'var' checkbox.")
                 return

@@ -6,6 +6,7 @@ import pyqtgraph as pg
 import json
 import socket
 import functools
+from ast import literal_eval
 
 from PyQt5.QtWidgets import QShortcut,  QToolBox, QFileDialog,  QMessageBox, QPushButton, QGroupBox, \
                             QFormLayout, QComboBox, QWidget, QTableWidgetItem, QVBoxLayout, \
@@ -77,17 +78,21 @@ class PulseMaster:
             add_pulse_button=1,
             new_pulseblock_button=1,
             pulseblock_combo=1,
-            variable_table_view = 1,
-            add_variable_button = 1,
+            variable_table_view=1,
+            add_variable_button=1,
+            add_sweep_button=1,
+            remove_sweep_button=1,
+            sweep_params_form=1,
             pulse_list_vlayout=1,
             pulse_scrollarea=1,
             pulse_layout_widget=1,
             seq_var_table=1,
-            load_seq_vars= 1,
+            load_seq_vars=1,
             save_seq_vars=1,
             seqt_textedit=1,
             load_seqt=1,
             save_seqt=1,
+            cmd_table_json=1,
             start_hdawg=1,
             stop_hdawg=1,
             autostart=1,
@@ -148,6 +153,9 @@ class PulseMaster:
 
         self.seq_var_table.setModel(self.seq_variable_table_model)
 
+        # Initialize sweep setting fields
+        self.setup_sweep_fields()
+
         self.add_pb_popup = None
 
         # Initialize preserve_bits checkbox state in dictionary
@@ -198,6 +206,11 @@ class PulseMaster:
 
         # Connect Add variable button.
         self.widgets['add_variable_button'].clicked.connect(self._add_row_to_var_table)
+
+        # Connect Add/Remove Sweep button
+        self.widgets['add_sweep_button'].clicked.connect(self.add_sweep)
+        self.widgets['remove_sweep_button'].clicked.connect(self.remove_sweep)
+        self.widgets['remove_sweep_button'].setEnabled(False)
 
         # Connect "Update Channel Assignment" Button
         self.widgets['update_ch_button'].clicked.connect(self.populate_ch_table_from_dict)
@@ -251,7 +264,6 @@ class PulseMaster:
         )
 
         return pb_specifier
-
 
     def get_pb_constructor_from_dict(self, pb_dict):
         """Generate Pb contructor from dictionary."""
@@ -773,8 +785,13 @@ class PulseMaster:
             self.pulse_toolbox.setCurrentWidget(pulse_form)
             pulse_form.parent().parent().setMinimumHeight(100)
 
+        self.update_all_sweep_params()
+        # TODO YQ: check if the imported PB constructor has any sweep params; if so update them
+
     def remove_pulse_specifier(self, pulse_specifier, pb_constructor):
         """"Remove pulse specifier from Pb constructor."""
+
+        index = pb_constructor.pulse_specifiers.index(pulse_specifier)
         pb_constructor.pulse_specifiers.remove(pulse_specifier)
 
         # Redraw toolbox
@@ -1033,7 +1050,6 @@ class PulseMaster:
         self.pulse_selector_form_layout_static.addRow(QLabel("Pulse Type:"), self.pulse_selector_pulse_drop_down)
         self.pulse_selector_form_static.setLayout(self.pulse_selector_form_layout_static)
 
-
         # Add a second form containing the fields that change from pulsetype to pulsetype
         self.pulse_selector_form_variable = QGroupBox()
         self.pulse_selector_form_variable.setObjectName("pulse_var_toolbox")
@@ -1214,6 +1230,179 @@ class PulseMaster:
 
         # Close popup
         self.add_pb_popup.close()
+
+    def validate_sweep_params(self):
+        """ Check that sweep parameter inputs are valid. """
+        sweep_params = self.widgets['sweep_params_form']
+        min_val, max_val, num_points = (sweep_params.itemAt(3).widget().text(),
+                                        sweep_params.itemAt(5).widget().text(),
+                                        sweep_params.itemAt(7).widget().text())
+
+        try:
+            min_val = float(min_val)
+            max_val = float(max_val)
+        except ValueError:
+            self.showerror("Sweep range must be a valid float.")
+            return (False,)
+        try:
+            num_points = int(num_points)
+        except ValueError:
+            self.showerror("Number of points must be a valid int. ")
+            return (False,)
+
+        if min_val < 0 or max_val < 0:
+            self.showerror("Sweep range cannot be negative.")
+            return (False,)
+        if max_val <= min_val:
+            self.showerror("Max value must be smaller than min value.")
+            return (False,)
+        if num_points <= 0:
+            self.showerror("Number of points must be positive integer.")
+            return (False,)
+        
+        return True, min_val, max_val, num_points
+
+    def update_all_sweep_params(self):
+        """ Update all sweep parameters after potentially modifying the list of 
+        pulses present in a pulseblock. The min/max/num points fields are left 
+        alone if we can find the same pulse variable in the new pulse list,
+        and are removed otherwise. """
+
+        current_pb_constructor = self.get_current_pb_constructor()
+        dropdown = self.widgets['sweep_params_form'].itemAt(1).widget()
+
+        # Remember previous sweep var before clearing
+        prev_sweep_var = dropdown.currentText()
+        
+        # Clear and replace with new pulse variables
+        self.clear_sweep_vars()
+        for idx, pulse_spec in enumerate(current_pb_constructor.pulse_specifiers):
+            self.add_sweep_vars(idx, pulse_spec)
+
+        # Put back the old sweep var if it present in the new dropdown list
+        if prev_sweep_var != "":
+            # Chop off at first comma to ignore the initial pulse index
+            prev_sweep_var_tail = prev_sweep_var.split(",", maxsplit=1)[1]
+
+            # Check if it exists in the current dropdown list
+            found = False
+            for i in range(dropdown.count()):
+                # endswith is used to ignore the pulse index
+                if dropdown.itemText(i).endswith(prev_sweep_var_tail):
+                    dropdown.setCurrentIndex(i)
+                    found = True
+                    break
+            
+            # If it is not in the new list, any existing sweep params are irrelevant 
+            if not found:
+                self.clear_sweep_params()
+
+    def add_sweep_vars(self, idx, pulse_spec):
+        """ Add the parameters for the given pulse specifier into the dropdown
+        box for sweep parameters. 
+
+        :idx: (int) Index of the pulse representing its order in the pulseblock
+        :pulse_spec: (PulseSpecifier) Specifications of the pulse that we want
+            to allow sweeping over.      
+        """
+
+        dropdown = self.widgets['sweep_params_form'].itemAt(1).widget()
+
+        # Use a shortened unique ID to specify the pulse (need to hash as 
+        # UUID has many repeated digits)
+        uid = str(hash(pulse_spec.uid))[:4]
+        dropdown.addItem(f"({idx}, {uid}, '{pulse_spec.pulsetype}', 'Amplitude')")
+        dropdown.addItem(f"({idx}, {uid}, '{pulse_spec.pulsetype}', 'Length')")
+
+    def add_sweep(self):
+        """ Add the currently-set sweep parameters to the pulseblock. """
+ 
+        sweep_params = self.widgets['sweep_params_form']
+        dropdown = self.widgets['sweep_params_form'].itemAt(1).widget()
+        current_pb = self.get_current_pb_constructor()
+
+        validated = self.validate_sweep_params()
+        if not validated[0]:
+            return
+        
+        sweep_var = literal_eval(dropdown.currentText())
+        min_val, max_val, num_points = validated[1:4]
+        pulse_index, sweep_type = sweep_var[0], sweep_var[-1]
+
+        # Store the sweep parameters in the pulse specifier dict
+        current_pb.pulse_specifiers[pulse_index].pulsevar_dict["sweep"] = (sweep_type,
+                                                        min_val, max_val, num_points)
+
+        # Freeze all the fields and buttons
+        for i in range(sweep_params.count()):
+            sweep_params.itemAt(i).widget().setEnabled(False)
+        self.widgets['remove_sweep_button'].setEnabled(True)
+        self.widgets['add_sweep_button'].setEnabled(False)
+
+    def remove_sweep(self):
+        """ Remove the currently-set sweep parameters. """
+
+        sweep_params = self.widgets['sweep_params_form']
+        dropdown = self.widgets['sweep_params_form'].itemAt(1).widget()
+        current_pb = self.get_current_pb_constructor()
+
+        # Extract the values from the text fields
+        min_val, max_val, num_points = (float(sweep_params.itemAt(3).widget().text()),
+                                        float(sweep_params.itemAt(5).widget().text()),
+                                        int(sweep_params.itemAt(7).widget().text()))
+        sweep_var = literal_eval(dropdown.currentText())
+        pulse_index, sweep_type = sweep_var[0], sweep_var[-1]
+
+        # Remove the sweep parameters from the pulse specifier dict 
+        stored_sweep_params = current_pb.pulse_specifiers[pulse_index].pulsevar_dict["sweep"]
+        # Check it has the expected value and remove 
+        assert(stored_sweep_params == (sweep_type, min_val, max_val, num_points))
+        del current_pb.pulse_specifiers[pulse_index].pulsevar_dict["sweep"]
+
+        self.clear_sweep_params()
+
+    def clear_sweep_vars(self):
+        """ Clear all sweep variables from the dropdown box. """
+
+        dropdown = self.widgets['sweep_params_form'].itemAt(1).widget()
+        dropdown.clear()
+
+    def clear_sweep_params(self):
+        """ Clear the text and dropdown fields for sweep parameters and reset 
+        buttons to the initial state. """
+
+        sweep_params = self.widgets['sweep_params_form']
+
+        # Clear all fields and re-enable them and buttons
+        for i in range(sweep_params.count()):
+            widget = sweep_params.itemAt(i).widget()
+            if type(widget) == QComboBox:
+                widget.setCurrentIndex(-1)
+            elif type(widget) == QLineEdit:
+                widget.setText("")
+            widget.setEnabled(True)
+        self.widgets['remove_sweep_button'].setEnabled(False)
+        self.widgets['add_sweep_button'].setEnabled(True)
+
+    def setup_sweep_fields(self):
+        """ Set up initial values for sweep fields. """
+
+        sweep_var_label = QLabel("Sweep Variable")
+        sweep_var_field = QComboBox()
+
+        min_label = QLabel("Min value")
+        min_field = QLineEdit()
+
+        max_label = QLabel("Max value")
+        max_field = QLineEdit()
+
+        n_label = QLabel("Num points")
+        n_field = QLineEdit()
+
+        self.widgets['sweep_params_form'].addRow(sweep_var_label, sweep_var_field)
+        self.widgets['sweep_params_form'].addRow(min_label, min_field)
+        self.widgets['sweep_params_form'].addRow(max_label, max_field)
+        self.widgets['sweep_params_form'].addRow(n_label, n_field)
 
     def gen_pulse_specifier(self, pulsetype_dict, pulse_data_dict):
         """ Generates instance of PulseSpecifier which contain full
@@ -1529,7 +1718,6 @@ class PulseMaster:
 
         return input_widget_name
 
-
     def _get_pulse_fieldtype(self, field_dict):
         """Determine input field type."""
         # Build field.
@@ -1613,7 +1801,6 @@ class PulseMaster:
 
         # Apply CSS stylesheet
         self.gui.apply_stylesheet()
-
 
     def set_pulsetype_combobox(self, combobox):
         for pulsetype in self.config_dict['pulse_types']:

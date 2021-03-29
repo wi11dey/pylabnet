@@ -1277,6 +1277,7 @@ class PulseMaster:
         # Clear and replace with new pulse variables
         self.clear_sweep_vars()
         for idx, pulse_spec in enumerate(current_pb_constructor.pulse_specifiers):
+            if pulse_spec.is_analog:
             self.add_sweep_vars(idx, pulse_spec)
 
         # Put back the old sweep var if it present in the new dropdown list

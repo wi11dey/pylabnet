@@ -1290,7 +1290,7 @@ class PulseMaster:
             for i in range(dropdown.count()):
                 # endswith is used to ignore the pulse index
                 if dropdown.itemText(i).endswith(prev_sweep_var_tail):
-                    dropdown.setCurrentIndex(i)
+                    dropdown.setCurrentIndex(i) # Set the dropdown box
                     found = True
                     break
             
@@ -1329,6 +1329,18 @@ class PulseMaster:
         sweep_var = literal_eval(dropdown.currentText())
         min_val, max_val, num_points = validated[1:4]
         pulse_index, sweep_type = sweep_var[0], sweep_var[-1]
+
+        if sweep_type == "Amplitude":
+            if current_pb.pulse_specifiers[pulse_index].pulsevar_dict["amp_var"]:
+                self.showerror(f"Cannot sweep amplitude as it has a ticked 'var' checkbox.")
+                return
+        elif sweep_type == "Length":
+            if current_pb.pulse_specifiers[pulse_index].pulsevar_dict["dur_var"]:
+                self.showerror(f"Cannot sweep duration as it has a ticked 'var' checkbox.")
+                return
+        else:
+            self.log.error(f"Unexpected sweep type {sweep_type} found.")
+            return
 
         # Store the sweep parameters in the pulse specifier dict
         current_pb.pulse_specifiers[pulse_index].pulsevar_dict["sweep"] = (sweep_type,

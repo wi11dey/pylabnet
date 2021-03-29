@@ -86,6 +86,8 @@ class PulseblockConstructor():
             
             var_dict = pb_spec.pulsevar_dict
             arg_dict = {}
+            params_dict = {}
+            arg_dict["params"] = params_dict
             
             # Extract parameters from the pulsevar dict
             offset = self.resolve_value(pb_spec.offset)  * 1e-6
@@ -97,11 +99,11 @@ class PulseblockConstructor():
             self.append_value_to_dict(var_dict, "freq", arg_dict)
             self.append_value_to_dict(var_dict, "ph", arg_dict)
             self.append_value_to_dict(var_dict, "stdev", arg_dict, fn=lambda x: 1e-6*x)
-            self.append_value_to_dict(var_dict, "iq", arg_dict)
             self.append_value_to_dict(var_dict, "mod", arg_dict)
             self.append_value_to_dict(var_dict, "mod_freq", arg_dict)
             self.append_value_to_dict(var_dict, "mod_ph", arg_dict)
 
+            self.append_value_to_dict(var_dict, "iq", params_dict)
             supported_pulses = {
                 "PTrue" : po.PTrue,
                 "PSin" : po.PSin,
@@ -110,7 +112,7 @@ class PulseblockConstructor():
             }
 
             # Handle IQ mixing case
-            if "iq" in arg_dict and arg_dict["iq"]:
+            if "iq" in params_dict and params_dict["iq"]:
                 
                 iq_calibration = IQ_Calibration()
                 iq_calibration.load_calibration(self.config["iq_cal_path"])
@@ -124,6 +126,8 @@ class PulseblockConstructor():
                 # Store the optimal IQ parameters as 2 separate dictionaries
                 arg_dict_i = copy.deepcopy(arg_dict)
                 arg_dict_q = copy.deepcopy(arg_dict)
+                arg_dict_i["params"] = copy.deepcopy(params_dict)
+                arg_dict_q["params"] = copy.deepcopy(params_dict)
 
                 # Modify the channel names
                 arg_dict_i["ch"] = arg_dict["ch"] + "_i"
@@ -138,9 +142,10 @@ class PulseblockConstructor():
 
                 # The amplitude is the amplitude of the Sin genarator and is 
                 # indepenent of ["amp"], the signal amplitude.
-                arg_dict_i["iq_params"] = {"amp_iq": amp_i_opt[0], "dc_iq": dc_i_opt[0], "lo_freq": lo_freq}
-                arg_dict_q["iq_params"] = {"amp_iq": amp_q_opt[0], "dc_iq": dc_q_opt[0], "lo_freq": lo_freq}
+                arg_dict_i["params"].update({"amp_iq": amp_i_opt[0], "dc_iq": dc_i_opt[0], "lo_freq": lo_freq})
+                arg_dict_q["params"].update({"amp_iq": amp_q_opt[0], "dc_iq": dc_q_opt[0], "lo_freq": lo_freq})
 
+                # Store the args for I and Q together in a list
                 arg_dict_list = [arg_dict_i, arg_dict_q]
 
             else:

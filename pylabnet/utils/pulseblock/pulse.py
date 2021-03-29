@@ -39,12 +39,13 @@ class PTrue(PulseBase):
     """ Pulse: Boolean True
     """
 
-    def __init__(self, ch, dur, t0=0):
+    def __init__(self, ch, dur, t0=0, params=None):
         super().__init__(ch=ch, dur=dur, t0=t0)
 
         # Define an automatic default.
         self.auto_default = DFalse()
         self.is_analog = False
+        self.params = params
 
 
     def __str__(self):
@@ -64,12 +65,13 @@ class PFalse(PulseBase):
     """ Pulse: Boolean False
     """
 
-    def __init__(self, ch, dur, t0=0):
+    def __init__(self, ch, dur, t0=0, params=None):
         super().__init__(ch=ch, dur=dur, t0=t0)
 
         # Define an automatic default.
         self.auto_default = DTrue()
         self.is_analog = False
+        self.params = params
 
     def __str__(self):
         return 'False'
@@ -91,7 +93,7 @@ class PSin(PulseBase):
 
     def __init__(self, ch, dur, t0=0, amp=0, freq=0, ph=0, 
                 mod=False, mod_freq=0, mod_ph=0,
-                iq=False, iq_params=None):
+                params=None):
         """ Construct Sin Pulse object
 
         :param ch: (str) channel name
@@ -103,8 +105,7 @@ class PSin(PulseBase):
         :param mod: (opt, bool) flag to set sinusoidal modulation
         :param mod_freq: (opt, np.float32) modulation frequency (linear, without 2*pi)
         :param mod_ph: (opt, np.float32) modulation phase (in degrees)
-        :param iq: (opt, bool) flag to set IQ mixing
-        :param iq_params: (opt, dict) dict to store IQ mixing params (e.g. phase/amp/offset)
+        :param params: (opt, dict) dict to store additional params (e.g. IQ, sweep)
         """
 
         super().__init__(ch=ch, dur=dur, t0=t0)
@@ -116,8 +117,7 @@ class PSin(PulseBase):
         self.mod_freq = mod_freq
         self.mod_ph = mod_ph
         self.is_analog = True
-        self.iq = iq
-        self.iq_params = iq_params
+        self.params = params
 
         # Define an automatic default.
         self.auto_default = DConst(val=0.0)
@@ -159,7 +159,7 @@ class PGaussian(PulseBase):
 
     def __init__(self, ch, dur, t0=0, amp=0, stdev=1, 
                 mod=False, mod_freq=0, mod_ph=0, 
-                iq=False, iq_params=None):
+                params=None):
         """ Construct Gaussian Pulse object
 
         :param ch: (str) channel name
@@ -170,8 +170,7 @@ class PGaussian(PulseBase):
         :param mod: (opt, bool) flag to set sinusoidal modulation
         :param mod_freq: (opt, np.float32) modulation frequency (linear, without 2*pi)
         :param mod_ph: (opt, np.float32) modulation phase (in degrees)
-        :param iq: (opt, bool) flag to set IQ mixing
-        :param iq_params: (opt, dict) dict to store IQ mixing params (e.g. phase/amp/offset)
+        :param params: (opt, dict) dict to store additional params (e.g. IQ, sweep)
         """
 
         super().__init__(ch=ch, dur=dur, t0=t0)
@@ -182,8 +181,7 @@ class PGaussian(PulseBase):
         self.mod_freq = mod_freq
         self.mod_ph = mod_ph
         self.is_analog = True
-        self.iq = iq
-        self.iq_params = iq_params
+        self.params = params
 
         # Define an automatic default.
         self.auto_default = DConst(val=0.0)
@@ -227,7 +225,7 @@ class PConst(PulseBase):
 
     def __init__(self, ch, dur, t0=0, val=0.0, 
                 mod=False, mod_freq=0, mod_ph=0,
-                iq=False, iq_params=None):
+                params=None):
         """ Construct Constant Pulse
 
         :param ch: (str) channel name
@@ -237,8 +235,7 @@ class PConst(PulseBase):
         :param mod: (opt, bool) flag to set sinusoidal modulation
         :param mod_freq: (opt, np.float32) modulation frequency (linear, without 2*pi)
         :param mod_ph: (opt, np.float32) modulation phase (in degrees)
-        :param iq: (opt, bool) flag to set IQ mixing
-        :param iq_params: (opt, dict) dict to store IQ mixing params (e.g. phase/amp/offset)
+        :param params: (opt, dict) dict to store additional params (e.g. IQ, sweep)
         """
 
         super().__init__(ch=ch, dur=dur, t0=t0)
@@ -247,8 +244,7 @@ class PConst(PulseBase):
         self.mod_freq = mod_freq
         self.mod_ph = mod_ph
         self.is_analog = True
-        self.iq = iq
-        self.iq_params = iq_params
+        self.params = params
 
         # Define an automatic default.
         self.auto_default = DConst(val=0.0)
@@ -329,7 +325,11 @@ class PCombined(PulseBase):
         self.mod = pulselist[0].mod
         self.mod_freq = pulselist[0].mod_freq
         self.mod_ph = pulselist[0].mod_ph
-        self.iq = pulselist[0].iq
+
+        if pulselist[0].params is None:
+            self.params = None
+        else:
+            self.params = pulselist[0].params.copy()
 
         # Define an automatic default.
         self.auto_default = dflt

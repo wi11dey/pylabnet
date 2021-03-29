@@ -364,8 +364,8 @@ class AWGPulseBlockHandler():
                                                     "mod_freq": mod_freq, 
                                                     "mod_ph": mod_ph})
 
-            if pulse.iq:
-                amp_iq, dc_iq, lo_freq = pulse.iq_params["amp_iq"], pulse.iq_params["dc_iq"], pulse.iq_params["lo_freq"]
+            if "iq" in pulse.params and pulse.params["iq"]:
+                amp_iq, dc_iq, lo_freq = pulse.params["amp_iq"], pulse.params["dc_iq"], pulse.params["lo_freq"]
 
                 self.setup_config_dict[ch.name].update({ 
                                                     "amp_iq": amp_iq, 
@@ -702,7 +702,6 @@ class AWGPulseBlockHandler():
             run multiple times.
         :return: sequence (str): AWG commands (e.g. setDIO() and wait()) that
             will generate the pulses described by the pulseblock.
-
         """
 
         # Get sample-wise sets of codewords for the digital channels.

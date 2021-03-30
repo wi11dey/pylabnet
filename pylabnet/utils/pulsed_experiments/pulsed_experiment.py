@@ -1,5 +1,7 @@
 
 import os
+import json
+import numpy as np
 from pylabnet.hardware.awg.zi_hdawg import Driver, Sequence, AWGModule
 from pylabnet.utils.zi_hdawg_pulseblock_handler.zi_hdawg_pb_handler import AWGPulseBlockHandler
 
@@ -8,148 +10,6 @@ class PulsedExperiment():
     This class conveniently allows for the generation and the AWG upload of
     pulse-sequences.
     """
-
-    def get_templates(self, template_directory="sequence_templates"):
-        """Look in sequence template folder and return list of templates."""
-
-        # Get all relevant files template files
-        current_directory = os.path.dirname(os.path.realpath(__file__))
-
-        template_directory = os.path.join(current_directory, template_directory)
-
-        files = [file for file in os.listdir(template_directory)
-            if  '.seqct' in file and '__init__.py' not in file
-        ]
-
-        files_trimmed = [filename.replace('.seqct', '') for filename in files]
-
-        return files_trimmed
-
-    def replace_placeholders(self):
-        """Replace all sequence placeholders with values."""
-        self.seq.replace_placeholders(self.placeholder_dict)
-        self.hd.log.info("Replaced placeholders.")
-
-    def replace_awg_commands(self, pulseblock):
-        """Replace all waveform placeholders with actual AWG waveform commands.
-
-        :pulseblock: Pulseblock object
-        """
-
-        if self.iplot:
-            from pylabnet.utils.pulseblock.pb_iplot import iplot
-            iplot(pulseblock)
-
-        # Instanciate pulseblock handler.
-        pb_handler = AWGPulseBlockHandler(
-            pb = pulseblock,
-            assignment_dict=self.assignment_dict,
-            exp_config_dict=self.exp_config_dict,
-            hd=self.hd
-        )
-
-        # Generate instruction set which represents pulse sequence.
-        (prologue_sequence, 
-         pulse_sequence, 
-         upload_waveforms, 
-         sweep_waveform) = pb_handler.get_awg_sequence(len(self.upload_waveforms))
-
-        # Replace the pulseblock name placeholder with the generated instructions
-        self.seq.replace_placeholders({pulseblock.name : pulse_sequence})
-        self.seq.prepend_sequence(prologue_sequence)
-        
-        # Save the list of waveforms to be uploaded to AWG
-        self.upload_waveforms.extend(upload_waveforms)
-        self.sweep_waveforms.extend(sweep_waveform)
-
-        self.hd.log.info("Replaced waveform placeholder sequence(s).")
-
-        return pb_handler
-
-    def prepare_sequence(self):
-        """Prepares sequence by replacing all variable placeholders and waveform-placeholders."""
-
-        # First replace the standard placeholders
-        if self.placeholder_dict is not None:
-            self.replace_placeholders()
-
-        # Then replace the waveform commands
-        for pulseblock in self.pulseblocks:
-            pb_handler = self.replace_awg_commands(pulseblock)
-            self.pulseblock_handlers.append(pb_handler)
-
-    def prepare_awg(self, awg_number):
-        """ Create AWG instance, uploads sequence and configures DIO output bits
-
-        :awg_nuber: (int) Core number of AWG to be started.
-        """
-
-        # Create an instance of the AWG Module.
-        awg = AWGModule(self.hd, awg_number)
-
-        if awg is None:
-            return
-
-        awg.set_sampling_rate('2.4 GHz') # Set 2.4 GHz sampling rate.
-        self.hd.log.info("Preparing to upload sequence.")
-
-        # Upload sequence
-        awg.compile_upload_sequence(self.seq)
-
-        # Upload waveforms to AWG
-        for waveform_tuple in self.upload_waveforms:
-            index = waveform_tuple[4]
-            waveform_np_array = waveform_tuple[5]
-            awg.dyn_waveform_upload(index, waveform_np_array)
-
-        # Compile the command table and send to AWG
-        self.compile_cmd_table()
-        awg.upload_cmd_table(self.cmd_table)
-        
-        # Setup analog channel settings for each pulseblock
-        # Setup DIO drive bits for each pulseblock
-        for pb_handler in self.pulseblock_handlers:
-            awg.setup_dio(pb_handler.DIO_bits)
-            awg.setup_analog(pb_handler.setup_config_dict, self.assignment_dict)
-
-        return awg
-
-    def compile_cmd_table(self):
-        # TODO YQ Write 
-        pass
-
-    def prepare_microwave(self):
-        """ Command the microwave generator to turn on output and set the 
-        oscillator frequency based on the IQ pulse requirements. """
-
-        if self.mw_client is None:
-            return
-
-        # Get all specified LO frequencies from the IQ pulses 
-        lo_freqs = set()
-        for pb_handler in self.pulseblock_handlers:
-            if "lo_freq" in pb_handler.setup_config_dict:
-                lo_freqs.add(pb_handler.setup_config_dict["lo_freq"])
-
-        if len(lo_freqs) == 0:
-            self.hd.log.info("MW client available but no pulses requiring MW oscillator.")
-            return
-        elif len(lo_freqs) > 1:
-            self.hd.log.warn("More than 1 MW frequencies specified, taking the first one.")
-
-        self.mw_client.set_freq(list(lo_freqs)[0])
-        # mw_client.set_power() # TODO: any default value for powers?
-        self.mw_client.output_on()
-
-    def get_ready(self, awg_number):
-        """Prepare AWG for sequence execution.
-
-        This function will generate the sequence based on the placeholders and the
-        pulseblocks, upload it to the AWG and configure the DIO output bits.
-        """
-        self.prepare_sequence()
-        self.prepare_microwave()
-        return self.prepare_awg(awg_number) # TODO YQ
 
     def __init__(self, 
                 pulseblocks, 
@@ -233,9 +93,205 @@ class PulsedExperiment():
             marker_string = marker_string
         )
 
-        self.cmd_table = {
-                "$schema": "￼http://docs.zhinst.com/hdawg/commandtable/v2/schema",
+        self.default_cmd_table = {
+                "$schema": "http://docs.zhinst.com/hdawg/commandtable/v2/schema",
                 "header": {"version": "0.2"},
                 "table": [] 
             }
         
+        self.cmd_table = ""
+
+    def get_templates(self, template_directory="sequence_templates"):
+        """Look in sequence template folder and return list of templates."""
+
+        # Get all relevant files template files
+        current_directory = os.path.dirname(os.path.realpath(__file__))
+
+        template_directory = os.path.join(current_directory, template_directory)
+
+        files = [file for file in os.listdir(template_directory)
+            if  '.seqct' in file and '__init__.py' not in file
+        ]
+
+        files_trimmed = [filename.replace('.seqct', '') for filename in files]
+
+        return files_trimmed
+
+    def replace_placeholders(self):
+        """Replace all sequence placeholders with values."""
+        self.seq.replace_placeholders(self.placeholder_dict)
+        self.hd.log.info("Replaced placeholders.")
+
+    def replace_awg_commands(self, pulseblock):
+        """Replace all waveform placeholders with actual AWG waveform commands.
+
+        :pulseblock: Pulseblock object
+        """
+
+        if self.iplot:
+            from pylabnet.utils.pulseblock.pb_iplot import iplot
+            iplot(pulseblock)
+
+        # Instanciate pulseblock handler.
+        pb_handler = AWGPulseBlockHandler(
+            pb = pulseblock,
+            assignment_dict=self.assignment_dict,
+            exp_config_dict=self.exp_config_dict,
+            hd=self.hd
+        )
+
+        # Generate instruction set which represents pulse sequence.
+        (prologue_sequence, 
+         pulse_sequence, 
+         upload_waveforms, 
+         sweep_waveform) = pb_handler.get_awg_sequence(len(self.upload_waveforms))
+
+        # Replace the pulseblock name placeholder with the generated instructions
+        self.seq.replace_placeholders({pulseblock.name : pulse_sequence})
+        self.seq.prepend_sequence(prologue_sequence)
+        
+        # Save the list of waveforms to be uploaded to AWG
+        self.upload_waveforms.extend(upload_waveforms)
+        self.sweep_waveforms.append(sweep_waveform)
+
+        self.hd.log.info("Replaced waveform placeholder sequence(s).")
+
+        return pb_handler
+
+    def prepare_sequence(self):
+        """Prepares sequence by replacing all variable placeholders and waveform-placeholders."""
+
+        # First replace the standard placeholders
+        if self.placeholder_dict is not None:
+            self.replace_placeholders()
+
+        # Then replace the waveform commands
+        for pulseblock in self.pulseblocks:
+            pb_handler = self.replace_awg_commands(pulseblock)
+            self.pulseblock_handlers.append(pb_handler)
+
+        self.compile_cmd_table()
+
+    def prepare_awg(self, awg_number):
+        """ Create AWG instance, uploads sequence and configures DIO output bits
+
+        :awg_nuber: (int) Core number of AWG to be started.
+        """
+
+        # Create an instance of the AWG Module.
+        awg = AWGModule(self.hd, awg_number)
+
+        if awg is None:
+            return
+
+        awg.set_sampling_rate('2.4 GHz') # Set 2.4 GHz sampling rate.
+        self.hd.log.info("Preparing to upload sequence.")
+
+        # Upload sequence
+        awg.compile_upload_sequence(self.seq)
+
+        # Upload waveforms to AWG
+        for waveform_tuple in self.upload_waveforms:
+            index = waveform_tuple[4]
+            waveform_np_array = waveform_tuple[5]
+            awg.dyn_waveform_upload(index, waveform_np_array)
+
+        # Upload command table to AWG
+        awg.upload_cmd_table(self.cmd_table)
+        
+        # Setup analog channel settings for each pulseblock
+        # Setup DIO drive bits for each pulseblock
+        for pb_handler in self.pulseblock_handlers:
+            awg.setup_dio(pb_handler.DIO_bits)
+            awg.setup_analog(pb_handler.setup_config_dict, self.assignment_dict)
+
+        return awg
+
+    def compile_cmd_table(self):
+        """ Compiles the command table JSOn file given the sweeps that will be 
+        done. """
+
+        if self.sweep_waveforms == []:
+            return
+    
+        table_index = 0
+        cmd_table = self.default_cmd_table
+
+        for sweep in self.sweep_waveforms:
+            (wave_var_names, waveform_indices, 
+            sweep_type, sweep_min,
+            sweep_max, sweep_steps) = sweep
+
+            if sweep_type == "Amplitude":
+                
+                for amp in np.linspace(sweep_min, sweep_max, sweep_steps):
+
+                    # Should have only 1 waveform index for amplitude sweep 
+                    # since we don't need a waveform for each amplitude value
+                    assert(len(waveform_indices) == 1)
+
+                    # Create entry for the amplitude value
+                    cmd_table["table"].append(
+                        {
+                            "index": table_index,
+                            "waveform": {
+                                "index": waveform_indices[0]
+                            },
+                            "amplitude0": {
+                                "value":amp
+                            }
+                        }
+                    )
+                    
+                    # Specify 2 amplitudes if we have 2 waves (e.g. IQ mixing)
+                    if len(wave_var_names) > 1:
+                        cmd_table["table"][-1]["amplitude1"] = {
+                                "value":amp
+                            }
+                    
+                    table_index += 1       
+
+            elif sweep_type == "Duration":
+                self.hd.log.error("Duration sweeps not supported at the moment!")
+                return
+            else:
+                self.hd.log.error("Invalid sweep type!")
+                return
+
+        # Convert from dict to JSON string
+        self.cmd_table = json.dumps(cmd_table)
+
+    def prepare_microwave(self):
+        """ Command the microwave generator to turn on output and set the 
+        oscillator frequency based on the IQ pulse requirements. """
+
+        if self.mw_client is None:
+            return
+
+        # Get all specified LO frequencies from the IQ pulses 
+        lo_freqs = set()
+        for pb_handler in self.pulseblock_handlers:
+            if "lo_freq" in pb_handler.setup_config_dict:
+                lo_freqs.add(pb_handler.setup_config_dict["lo_freq"])
+
+        if len(lo_freqs) == 0:
+            self.hd.log.info("MW client available but no pulses requiring MW oscillator.")
+            return
+        elif len(lo_freqs) > 1:
+            self.hd.log.warn("More than 1 MW frequencies specified, taking the first one.")
+
+        self.mw_client.set_freq(list(lo_freqs)[0])
+        # mw_client.set_power() # TODO: any default value for powers?
+        self.mw_client.output_on()
+
+    def get_ready(self, awg_number):
+        """Prepare AWG for sequence execution.
+
+        This function will generate the sequence based on the placeholders and the
+        pulseblocks, upload it to the AWG and configure the DIO output bits.
+        """
+        self.prepare_sequence()
+        self.prepare_microwave()
+        return self.prepare_awg(awg_number) # TODO YQ
+
+

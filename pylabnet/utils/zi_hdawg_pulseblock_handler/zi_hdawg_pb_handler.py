@@ -223,13 +223,20 @@ class AWGPulseBlockHandler():
 
         :param: waveform_idx (int): Indices assigned to waveforms from this
             pulseblock will start counting incrementing from this value.
-        :return: waveforms: (list) of tuples(waveform var name, ch_name, 
-        start_step, end_step, np.array waveform). Start/end are in AWG time steps.
+
         :return: setup_instr (str) representing the AWG instructions used to 
             set up the analog pulses.
+        :return: waveforms: (list) of tuples(waveform var name, ch_name, 
+            start_step, end_step, np.array waveform). Start/end are in AWG 
+            time steps.
+        :return: sweep_waveform: (tuple) of parameters for a waveform involved 
+            in a sweep. None if none present. Parameters are (list of waveform
+            variable names, list of waveform indices, pulse sweep type, 
+            sweep min value, max value, number of sweep steps)
         """
 
         waveforms = []
+        sweep_waveform = None
         setup_instr = ""
 
         # if len(self.pb.p_dict.keys()) > 2: 
@@ -294,11 +301,11 @@ class AWGPulseBlockHandler():
                         merge_found = True
                         break
 
-        #### 2. Digitize all pulses within a single channel ####
+        #### 2. Digitize all pulses within a single channel ####           
 
         for ch, pulse_list in analog_pulse_dict.items():
             dflt_pulse = self.pb.dflt_dict[ch]
-            
+
             for pulse in pulse_list:
 
                 # Temporarily disable modulation to get the digitized envelope
@@ -333,19 +340,64 @@ class AWGPulseBlockHandler():
                 if type(pulse.t0 + pulse.dur) == Placeholder:
                     tstep_end = ((pulse.t0 + pulse.dur) * self.digital_sr).round_val()
                 else:
-                    tstep_end = int(np.round((pulse.t0 + pulse.dur) * self.digital_sr))
+                    tstep_end = int(np.round((pulse.t0 + pulse.dur) *  self.digital_sr))
 
                 waveforms.append([wave_var_name,
                                 ch.name, 
                                 tstep_start,
                                 tstep_end,
+                                waveform_idx,
                                 samp_arr])
                 
                 # Declare the waveform in the AWG code with a placeholder
                 setup_instr += f'wave {wave_var_name} = placeholder({len(samp_arr)});\n'
-                # Assign wave index
                 setup_instr += f'assignWaveIndex({wave_var_name}, {waveform_idx});\n'
-                waveform_idx += 1
+                waveform_idx += 1  
+
+                # Check if the current pulse is involved in a sweep
+                # If so, we need to assign an additional wave index for the 
+                # swept pulse since we need to specify its channel number.
+                if "sweep" in pulse.params and pulse.params["sweep"]:
+
+                    # Only need to specify once for an IQ pair
+                    if ch.name.endswith("_i"):
+                        pass
+                    elif ch.name.endswith("_q"):
+                        ch_num_q = self.assignment_dict[ch.name][1]
+                        ch_num_i = self.assignment_dict[ch.name[:-2] + "_i"][1]
+                        assert("_q_" in wave_var_name)
+                        wave_var_name_i = wave_var_name.replace("_q_", "_i_")
+            
+                        setup_instr += f'assignWaveIndex({ch_num_i}, {wave_var_name_i}, {ch_num_q}, {wave_var_name}, {waveform_idx});\n'
+                        
+                        if sweep_waveform is not None:
+                            self.log.error("Detected >1 sweep waveforms! "
+                                           "Can only have 1 sweep waveform!")
+                            return
+                        sweep_waveform = ([wave_var_name_i, wave_var_name],
+                                          [waveform_idx], 
+                                          pulse.params["sweep_type"],
+                                          pulse.params["sweep_min"],
+                                          pulse.params["sweep_max"],
+                                          pulse.params["sweep_steps"]) 
+                        waveform_idx += 1  
+
+                    # For a normal sweep pulse that only has 1 channel        
+                    else:
+                        ch_num = self.assignment_dict[ch.name][1]
+                        setup_instr += f'assignWaveIndex({ch_num}, {wave_var_name}, {waveform_idx});\n'
+                        
+                        if sweep_waveform is not None:
+                            self.log.error("Detected >1 sweep waveforms! "
+                                           "Can only have 1 sweep waveform!")
+                            return
+                        sweep_waveform = ([wave_var_name],
+                                          [waveform_idx],
+                                          pulse.params["sweep_type"],
+                                          pulse.params["sweep_min"],
+                                          pulse.params["sweep_max"],
+                                          pulse.params["sweep_steps"])
+                        waveform_idx += 1                        
 
         #### 3. Extract parameters for channel / output setup procedure  ####
 
@@ -425,22 +477,22 @@ class AWGPulseBlockHandler():
         #                     else:
         #                         break
 
-        return waveforms, setup_instr
+        return setup_instr, waveforms, sweep_waveform
 
-    def zip_digital_commands(self, codewords_array): 
+    def zip_digital_commands(self): 
         """Generate zipped version of DIO commands.
 
         This will reduce the digital waveform to specify the times, when the DIO 
         output changes, and corresponsing timesteps where the output change.
         Does not account for the time taken for the wait() command.
 
-        :codewords_array: (np.array) of DIO codewords as sampled at each AWG 
-            time step.
-
         :return: codewords: (np.array) of unique DIO codewords ordered in time
         :return: codeword_times: (list) of times in AWG timesteps to output the 
             DIO codewords
         """
+
+        # np.array of DIO codewords as sampled at each AWG time step.
+        codewords_array = self.digital_codewords_samples
 
         # Force final output to be zero 
         if self.end_low:
@@ -476,24 +528,15 @@ class AWGPulseBlockHandler():
         if codeword_times[0] != 0:
             codeword_times = [0] + codeword_times
 
-
-
         # Sanity check that both methods should give the same length
         assert(len(codeword_times) == len(codeword_times_force_value))
-        # self.log.error(codeword_times)
-        # self.log.error(codeword_times_force_value)
     
         return codewords, codeword_times
 
-    def combine_command_timings(self, digital_codewords, digital_times, waveforms):
+    def combine_command_timings(self):
 
         """ Combine the commands and timings from the analog and digital commands
         to give a combined list of codewords and wait time intervals. 
-
-        :digital_codewords: (list) of DIO codewords to be output
-        :digital_times: (list) of times in AWG timesteps to output the DIO codewords
-        :waveforms: (list) of tuples(waveform var name, ch_name, 
-        start_time, end_time, np.array waveform) - times in AWG timesteps
 
         :return: combined_commands: (list) of commands represented as tuples.  
             Digital: ("digital", dio_codeword)
@@ -502,6 +545,12 @@ class AWGPulseBlockHandler():
         :return: combined_waittimes: (list) of wait times between all commands,
             including digital and digital.
         """
+
+        # list of times in AWG timesteps to output the DIO codewords 
+        digital_times = self.digital_times
+        # list of tuples(waveform var name, ch_name, start_time, end_time, 
+        # waveform idx, np.array waveform). Times in AWG timesteps
+        waveforms = self.waveforms
 
         combined_commands, combined_times = [], [0]
 
@@ -531,7 +580,7 @@ class AWGPulseBlockHandler():
 
             if take == "dio":
                 # Store DIO codeword
-                combined_commands.append(("dio", digital_codewords[dio_index]))
+                combined_commands.append(("dio", self.digital_codewords[dio_index]))
                 combined_times.append(digital_times[dio_index])
                 dio_index += 1
             else:
@@ -577,6 +626,7 @@ class AWGPulseBlockHandler():
 
         set_dio_cmd = "setDIO({});\n"
         playwave_cmd = "playWave({});\n"
+        cmd_table_cmd = "//LOOP OVER SWEEP PARAMETER;\nexecuteTableEntry({});\n"
         wave_str = ""
 
         if command[0] == "dio":
@@ -594,6 +644,10 @@ class AWGPulseBlockHandler():
 
             if not all(ch_type == "analog" for ch_type in ch_types):
                 self.log.warn(f"Channel expected to get analog but got an unexpected type.")
+
+            if (self.sweep_waveform is not None and
+                set(waveform_var_names) == set(self.sweep_waveform[0])):
+                return cmd_table_cmd.format(f"sweep_idx_{self.pb.name}")
 
             # For analog waveforms, the command is playWave(ch, wave, ch, wave, ...)
             # Put the waveforms from the earlier channels first. 
@@ -633,7 +687,7 @@ class AWGPulseBlockHandler():
         return sequence
 
 
-    def construct_awg_sequence(self, commands, waittimes, wait_offset=SETDIO_OFFSET):
+    def construct_awg_sequence(self, wait_offset=SETDIO_OFFSET):
         """Construct .seqc sequence representing the AWG instructions to output
         a set of pulses over multiple channels
 
@@ -645,7 +699,7 @@ class AWGPulseBlockHandler():
         :wait_offset: (int) Number of samples to adjust the waittime in order to
             account for duration of setDIO() command.
         """
-
+        
         mask = None
         sequence = f"// Start of Pulseblock {self.pb.name}\n"
         wait_cmd = "wait({});\n"
@@ -667,7 +721,7 @@ class AWGPulseBlockHandler():
 
         # Waits and commands are interspersed (wait-command-wait-command-...)
         # If the first wait is 0, it is not displayed due to the wait_offset
-        for i, waittime in enumerate(waittimes):
+        for i, waittime in enumerate(self.combined_waittimes):
 
             # Add waittime to sequence but subtract the wait offset
             if waittime > wait_offset:
@@ -680,7 +734,7 @@ class AWGPulseBlockHandler():
                 else:
                     sequence += wait_cmd.format(int(waittime - wait_offset))
 
-            sequence += self.awg_seq_command(commands[i], mask)
+            sequence += self.awg_seq_command(self.combined_commands[i], mask)
         
         sequence += f"// End of Pulseblock {self.pb.name}\n"
 
@@ -705,23 +759,18 @@ class AWGPulseBlockHandler():
         """
 
         # Get sample-wise sets of codewords for the digital channels.
-        digital_codewords_samples = self.gen_digital_codewords()
+        self.digital_codewords_samples = self.gen_digital_codewords()
 
         # Reduce this array to a set of codewords + waittimes.
-        digital_codewords, digital_times = self.zip_digital_commands(digital_codewords_samples)
+        self.digital_codewords, self.digital_times = self.zip_digital_commands()
 
         # Get instructions for the analog channels
-        # List of tuples (waveform var name, ch_name, start_step, end_step, np.array waveform)
         # analog_setup is a string to be prepended to the compiled code
-        waveforms, analog_setup = self.gen_analog_instructions(waveform_idx)
+        self.analog_setup, self.waveforms, self.sweep_waveform = self.gen_analog_instructions(waveform_idx)
 
-        combined_commands, combined_waittimes = self.combine_command_timings(
-                                                    digital_codewords, 
-                                                    digital_times, 
-                                                    waveforms)
+        self.combined_commands, self.combined_waittimes = self.combine_command_timings()
 
         # Reconstruct set of .seqc instructions representing the digital waveform.
-        sequence = self.construct_awg_sequence(combined_commands,
-                                               combined_waittimes)
+        self.sequence = self.construct_awg_sequence()
 
-        return analog_setup, sequence, waveforms
+        return self.analog_setup, self.sequence, self.waveforms, self.sweep_waveform

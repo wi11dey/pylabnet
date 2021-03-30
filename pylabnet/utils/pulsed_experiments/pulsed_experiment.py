@@ -49,7 +49,10 @@ class PulsedExperiment():
         )
 
         # Generate instruction set which represents pulse sequence.
-        prologue_sequence, pulse_sequence, upload_waveforms = pb_handler.get_awg_sequence(len(self.upload_waveforms))
+        (prologue_sequence, 
+         pulse_sequence, 
+         upload_waveforms, 
+         sweep_waveform) = pb_handler.get_awg_sequence(len(self.upload_waveforms))
 
         # Replace the pulseblock name placeholder with the generated instructions
         self.seq.replace_placeholders({pulseblock.name : pulse_sequence})
@@ -57,6 +60,7 @@ class PulsedExperiment():
         
         # Save the list of waveforms to be uploaded to AWG
         self.upload_waveforms.extend(upload_waveforms)
+        self.sweep_waveforms.extend(sweep_waveform)
 
         self.hd.log.info("Replaced waveform placeholder sequence(s).")
 
@@ -93,10 +97,15 @@ class PulsedExperiment():
         awg.compile_upload_sequence(self.seq)
 
         # Upload waveforms to AWG
-        for index, waveform_tuple in enumerate(self.upload_waveforms):
-            waveform_np_array = waveform_tuple[-1]
+        for waveform_tuple in self.upload_waveforms:
+            index = waveform_tuple[4]
+            waveform_np_array = waveform_tuple[5]
             awg.dyn_waveform_upload(index, waveform_np_array)
 
+        # Compile the command table and send to AWG
+        self.compile_cmd_table()
+        awg.upload_cmd_table(self.cmd_table)
+        
         # Setup analog channel settings for each pulseblock
         # Setup DIO drive bits for each pulseblock
         for pb_handler in self.pulseblock_handlers:
@@ -104,6 +113,10 @@ class PulsedExperiment():
             awg.setup_analog(pb_handler.setup_config_dict, self.assignment_dict)
 
         return awg
+
+    def compile_cmd_table(self):
+        # TODO YQ Write 
+        pass
 
     def prepare_microwave(self):
         """ Command the microwave generator to turn on output and set the 
@@ -188,8 +201,10 @@ class PulsedExperiment():
         self.iplot = iplot
 
         # List of waveforms to be uploaded. Items are of the form:
-        # tuple(waveform var name, ch_name, start_step, end_step, np.array waveform)
+        # tuple(waveform var name, ch_name, start_step, end_step, index, np.array waveform)
         self.upload_waveforms = []
+        # List of sweeps to be compiled into JSON. 
+        self.sweep_waveforms = []
 
         # Check if template is available, and store it.
         if use_template:

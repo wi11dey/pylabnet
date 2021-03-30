@@ -415,9 +415,14 @@ class PulseMaster:
 
         # Retrieve uploaded sequence
         uploaded_sequence = self.pulsed_experiment.seq.sequence
-
         # Set sequence previewer.
         self.widgets['preview_seq_area'].setText(uploaded_sequence)
+
+        # Retrive uplaoded command table
+        cmd_table = self.pulsed_experiment.cmd_table
+        # Set sequence previewer. Load and dump to get proper formatting
+        if cmd_table != "":
+            self.widgets['cmd_table_json'].setText(json.dumps(json.loads(cmd_table), indent=4))
 
         # Upload sequence to metadata
         self.log.update_metadata(
@@ -1258,6 +1263,9 @@ class PulseMaster:
             return (False,)
         if num_points <= 0:
             self.showerror("Number of points must be positive integer.")
+            return (False,)
+        if num_points > 1023:
+            self.showerror("Number of points must be at most 1023.")
             return (False,)
         
         return True, min_val, max_val, num_points

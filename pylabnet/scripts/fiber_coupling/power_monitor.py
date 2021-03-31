@@ -153,7 +153,7 @@ class Monitor:
                 p_in = 0
                 split_in = (0, 0)
             try:
-           9     p_ref = self.pm.get_power(2)
+                p_ref = self.pm.get_power(2)
                 split_ref = split(p_ref)
             except OverflowError:
                 p_ref = 0

@@ -1,4 +1,5 @@
 import numpy as np
+from si_prefix import split, prefix
 import socket
 import time
 
@@ -10,7 +11,9 @@ from pylabnet.utils.helper_methods import generate_widgets, unpack_launcher, fin
 from pylabnet.network.client_server import thorlabs_mpc320, thorlabs_pm320e
 from pylabnet.scripts.fiber_coupling.power_monitor import PMInterface as PM_Interface
 
- 
+CALIBRATION = 1
+PW_NAME = "Test Powermeter"
+
 class Controller:
 
     """ A script class for controlling mpc320 polarization paddles + thorlabs_pm320 power meter + interfacing with GUI"""
@@ -21,8 +24,8 @@ class Controller:
     ]
 
 
-    def __init__(self, paddles_client, pm_client, gui='pol_paddles', logger=None, calibration=None, name=None, port=None):
-        """ Instantiates the controller for one pol paddles device with 3 paddles with GUI
+    def __init__(self, paddles_client, pm_client, gui='pol_paddles', config=None, logger=None, calibration=None, name=None, port=None):
+        """ Instantiates the controller for one pol paddles device with 3 paddles, and power meter with GUI
 
         :param pm_clients: (client, list of clients) clients of polorization paddles
         :param gui_client: client of monitor GUI
@@ -31,10 +34,11 @@ class Controller:
         :name: (str) Humand-readable name of the power meter.
         """
 
+        self.config = config
         self.pol = paddles_client
         self.paddles = [0,1,2]
         self.pm = pm_client
-        self.log = LogHandler(logger=log_client)
+        self.log = LogHandler(logger)
         self.num_plots = 4
         self.ir_index, self.rr_index = [], []  ##what?
         self.running = False
@@ -46,6 +50,7 @@ class Controller:
             port=port
         )
         self.gui.apply_stylesheet()
+        self.calibration = calibration
 
         # add some defenitions
 
@@ -75,14 +80,18 @@ class Controller:
         self._initialize_gui()
     
 
-    def initialize_parameters(self, channel, params):
+    def _initialize_parameters(self, params):
         #sets devices to gui parameters
+        if str(params[17]) == "channel 1":
+            channel = 0 
+        else:
+            channel = 1
         
         """ Updates wavelength, range of pm and velocity of pol paddle by values set in GUI"""  
         self.pm.set_wavelength(1, params[3])
         self.pm.set_wavelength(2,  params[3])
 
-        if channel == 0:
+        if channel == 0: 
             if self.ir_index != params[0]:
                 self.ir_index = params[0]
                 self.pm.set_range(1, self.RANGE_LIST[self.ir_index])
@@ -97,10 +106,6 @@ class Controller:
 
     def get_GUI_parameters(self):
         #initialize parameters fom Gui widget to be later send to device
-        for paddle in self.paddles:
-            self.gui_around[paddle] = self.widgets['around_angle'][paddle].value()
-            self.gui_pos[paddle] = self.widgets['move_pos'][paddle].value()
-            self.gui_step[paddle] = self.widgets['step_size'][paddle].value()
 
         return(
             self.widgets['combo_widget'][3].currentIndex(), #range_index_i
@@ -111,21 +116,20 @@ class Controller:
             self.widgets['iterations'].value(), #gui_iterations  
             self.widgets['converge_parameter'].value(), #gui_converge_parameter  
             self.widgets['sleep_time'].value(), #gui_sleep_time =
-            self.gui_around,
-            self.gui_pos,
-            self.gui_step,
+            self.widgets['around_angle'][0].value(),
+            self.widgets['around_angle'][1].value(),
+            self.widgets['around_angle'][2].value(),
+            self.widgets['move_pos'][0].value(),
+            self.widgets['move_pos'][1].value(),
+            self.widgets['move_pos'][2].value(),
+            self.widgets['step_size'][0].value(),
+            self.widgets['step_size'][1].value(),
+            self.widgets['step_size'][2].value(),
+            self.widgets['combo_widget'][2].currentIndex(), #channel
         )
 
         # Update GUI
-        for plot_no in range(self.num_plots): # Update Number
-            self.widgets['number_widget'][plot_no].setValue(formatted_values[plot_no])
 
-         # Update Curve
-            self.plotdata[plot_no] = np.append(self.plotdata[plot_no][1:], values[plot_no])
-            self.widgets[f'curve_{plot_no}'].setData(self.plotdata[plot_no])
-
-            if plot_no < 2:
-                self.widgets["label_widget"][plot_no].setText(f'{value_prefixes[plot_no]}W')
 
     def _initialize_gui(self):
         """ Instantiates GUI by assigning widgets """
@@ -160,13 +164,13 @@ class Controller:
 
             #add optimize around
 
-        self.widgets['optimize_all'].pressed.connect(self._optimize()
-        ) #gept step and sleep_time
+        self.widgets['optimize_all'].pressed.connect(self._optimize(params)
+        ) #get step and sleep_time
 
         #parameters that need to be updated in PM or pol paddles
-        self.widgets['wavelength'].valueChanged.connect(self._update_wavelength)
-        self.widgets['combo_widget'][3].currentIndexChanged.connect(lambda: self._update_range(0)) #why did we have two in poer_monitor
-        self.widgets['combo_widget'][4].currentIndexChanged.connect(lambda: self._update_range(1)) #why did we have two in poer_monitor
+        self.widgets['wavelength'].valueChanged.connect(self._initialize_parameters(params))
+        self.widgets['combo_widget'][3].currentIndexChanged.connect(self._initialize_parameters(params)) #why did we have two in poer_monitor
+        self.widgets['combo_widget'][4].currentIndexChanged.connect(self._initialize_parameters(params)) #why did we have two in poer_monitor
         self.widgets['velocity'].currentIndexChanged.connect(self._update_velocity)
 
         # Technical methods
@@ -183,9 +187,12 @@ class Controller:
         self.pol.move(self, paddle, params[11+paddle], params[7])# params11+paddle] = self.gui_pos, params [7] = self.gui_sleep_time
         self.widgets['move_pos'][paddle].setValue(params[11+paddle]) 
 
-    def _get_power(self,channel):
-        power = self.pm.get_power(channel)
-        return power
+    def _get_power(self,params):
+        if (str(params[17]) == "channel 1"):
+            channel = 0 
+        else:
+            channel = 1
+        return self.pm.get_power(channel)
 
         #can add a check that movement worked
 
@@ -194,7 +201,7 @@ class Controller:
         self.widgets['text_edit'][paddle].setValue(pos)
         return pos
 
-    def run(self):
+    def _run(self):
         # Continuously update data until paused
         self.running = True
 
@@ -230,13 +237,23 @@ class Controller:
         values = [p_in, p_ref, efficiency]
 
         # For the two power readings, reformat.
-        # E.g., split(0.003) will return (3, -3)
-        # And prefix(-3) will return 'm'
-        formatted_values = [split_in[0], split_ref[0], efficiency]
-        value_prefixes =  [prefix(split_val[1]) for split_val in [split_in, split_ref]]
+    
         #plot efficiency in GUI
+        
+        #formatted_values = [split_in[0], split_ref[0], efficiency]
+        #value_prefixes =  [prefix(split_val[1]) for split_val in [split_in, split_ref]]
+        
+        #for plot_no in range(self.num_plots): # Update Number
+        #    self.widgets['number_widget'][plot_no].setValue(formatted_values[plot_no])
 
-        self.widgets['graph_widget'][4].plot(angle, values[3], symbol = 'o', color = 'b' ) 
+         # Update Curve
+        #    self.plotdata[plot_no] = np.append(self.plotdata[plot_no][1:], values[plot_no])
+        #    self.widgets[f'curve_{plot_no}'].setData(self.plotdata[plot_no])
+
+        #    if plot_no < 2:
+        #        self.widgets["label_widget"][plot_no].setText(f'{value_prefixes[plot_no]}W')
+
+        self.widgets['graph_widget'][4].plot(values[3], symbol = 'o', color = 'b' )  #think about  x axis 
 
 
     def _optimize(self, params):
@@ -264,7 +281,7 @@ class Controller:
                     params[14+paddle] = step_size  #self.gui_step
                     self._move_rel(paddle, params)
                     PosF = self._show_pos(paddle)
-                    current_power = self._get_power(channel)
+                    current_power = self._get_power(params)
                     power.extend([current_power])
                     angle.extend([PosF])
                     count += 1
@@ -277,7 +294,7 @@ class Controller:
                     if abs(ang[iter_count] - ang[iter_count-1]) < params[6]: #self.gui_converge_parameter:
                         self.widgets['optimization converged'][paddle].setChecked(True)    #add this in ui file
                         params[11+paddle] = angle[max_index]
-                        self.move(paddle,params)
+                        self._move(paddle,params)
                         count = 0
                         iter_count = 0
                         power = []
@@ -301,36 +318,45 @@ def launch(**kwargs):
     # Unpack and assign parameters
     logger = kwargs['logger']
     clients = kwargs['clients']
-    config = load_script_config(script='pol_paddle_control',
+    config = load_script_config(script='pol_paddles',
                         config=kwargs['config'],
                         logger=logger)
-    pol_client = find_client(clients=clients, settings=config, client_type='MPC320')  #what is client type?
-    pm_client = find_client(clients=clients, settings=config, client_type='PM320e')  #what is client type?
-    gui_client = 'pol_paddles'
+    pol_client = find_client(clients=clients, settings=config, client_type='MPC320', client_config = config, logger = logger) 
+    pm_client = find_client(clients=clients, settings=config, client_type='PM320e', client_config = config, logger = logger)  
     settings = load_script_config(   #relevanf for pm_interface to interface other devices rather than only Thorlabs power meter.
     'power_monitor',
     kwargs['config'],
     logger=logger
     )
-    pm = PMInterface(pm_client, settings)
+    #gui_client='pol_paddles'
+    pm = PM_Interface(pm_client, settings)
 
     # Instantiate controller
-    control = Controller(pol_client, pm_client, gui_client, logger, config=kwargs['config'], port=kwargs['server_port'])
+    control = Controller(
+        paddles_client=pol_client,
+        pm_client=pm,
+        gui = 'pol_paddles', 
+        config=kwargs['config'], 
+        logger=logger, 
+        calibration=CALIBRATION, 
+        name=PW_NAME, 
+        port=kwargs['server_port']
+    )
 
     # Initialize parameters
     params = control.get_GUI_parameters()
-    control.initialize_parameters(channel,params)
+    control._initialize_parameters(params)
     control._setup_gui(params)
-    control.run()
+    control._run()
 
-    try:
-        control.load_settings()
-    except Exception as e:
-        logger.warn(e)
-        logger.warn('Failed to load settings from config file')
+    #try:
+    #    control.load_settings()
+    #except Exception as e:
+    #    logger.warn(e)
+    #    logger.warn('Failed to load settings from config file')
 
     control.gui.app.exec_()
 
     # Mitigate warnings about unused variables
-    if loghost and logport and params:
-        pass
+    #if loghost and logport and params:
+    #    pass

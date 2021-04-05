@@ -152,7 +152,8 @@ class PulsedExperiment():
         
         # Save the list of waveforms to be uploaded to AWG
         self.upload_waveforms.extend(upload_waveforms)
-        self.sweep_waveforms.append(sweep_waveform)
+        if sweep_waveform is not None:
+            self.sweep_waveforms.append(sweep_waveform)
 
         self.hd.log.info("Replaced waveform placeholder sequence(s).")
 
@@ -173,6 +174,8 @@ class PulsedExperiment():
         # Add setup code required for preserving DIO bits
         if self.exp_config_dict["preserve_bits"]:
             self.prepare_preserve_dio_seq()
+        
+        self.compile_cmd_table()
         
     def prepare_preserve_dio_seq(self):
         """ Prepares setup code in the AWG sequence reuqired for preserving 
@@ -196,8 +199,6 @@ class PulsedExperiment():
         sequence += "var masked_state = ~mask&current_state;\n"
 
         self.seq.prepend_sequence(sequence)
-
-        self.compile_cmd_table()
 
     def prepare_awg(self, awg_number):
         """ Create AWG instance, uploads sequence and configures DIO output bits
@@ -320,5 +321,5 @@ class PulsedExperiment():
         self.prepare_sequence()
         self.prepare_microwave()
         return self.prepare_awg(awg_number) # TODO YQ
-
+        
 

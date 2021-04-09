@@ -279,7 +279,7 @@
       <widget class="QSpinBox" name="velocity"/>
      </item>
      <item row="0" column="0">
-      <widget class="QComboBox" name="comboBox">
+      <widget class="QComboBox" name="comboBox_1">
        <item>
         <property name="text">
          <string>paddle 1</string>
@@ -419,7 +419,7 @@
     </property>
     <layout class="QHBoxLayout" name="horizontalLayout_9">
      <item>
-      <widget class="QPushButton" name="optimize_all_p">
+      <widget class="QPushButton" name="optimize_all">
        <property name="text">
         <string>Optimize_all</string>
        </property>
@@ -527,7 +527,7 @@
     <property name="alignment">
      <set>Qt::AlignCenter</set>
     </property>
-    <widget class="QTextEdit" name="textEdit">
+    <widget class="QTextEdit" name="textEdit_1">
      <property name="geometry">
       <rect>
        <x>130</x>
@@ -537,7 +537,7 @@
       </rect>
      </property>
     </widget>
-    <widget class="QWidget" name="">
+    <widget class="QWidget" name="layoutWidget">
      <property name="geometry">
       <rect>
        <x>30</x>
@@ -559,7 +559,7 @@
       </item>
      </layout>
     </widget>
-    <widget class="QPushButton" name="home_p_1">
+    <widget class="QPushButton" name="home_1">
      <property name="geometry">
       <rect>
        <x>30</x>
@@ -572,7 +572,7 @@
       <string>Home</string>
      </property>
     </widget>
-    <widget class="QPushButton" name="optimize_all_p_5">
+    <widget class="QPushButton" name="optimize_around_1">
      <property name="geometry">
       <rect>
        <x>30</x>
@@ -608,7 +608,7 @@
       <string>Get angle</string>
      </property>
     </widget>
-    <widget class="QWidget" name="">
+    <widget class="QWidget" name="layoutWidget">
      <property name="geometry">
       <rect>
        <x>30</x>
@@ -619,7 +619,7 @@
      </property>
      <layout class="QHBoxLayout" name="horizontalLayout_4"/>
     </widget>
-    <widget class="QWidget" name="">
+    <widget class="QWidget" name="layoutWidget">
      <property name="geometry">
       <rect>
        <x>30</x>
@@ -630,14 +630,14 @@
      </property>
      <layout class="QHBoxLayout" name="horizontalLayout_11">
       <item>
-       <widget class="QPushButton" name="step_by">
+       <widget class="QPushButton" name="step_by_1">
         <property name="text">
          <string>Step by</string>
         </property>
        </widget>
       </item>
       <item>
-       <widget class="QSpinBox" name="step_size"/>
+       <widget class="QSpinBox" name="step_magnitude_1"/>
       </item>
      </layout>
     </widget>
@@ -713,7 +713,7 @@
      </property>
      <layout class="QHBoxLayout" name="horizontalLayout_7">
       <item>
-       <widget class="QPushButton" name="optimize_all_p_8">
+       <widget class="QPushButton" name="optimize_around_3">
         <property name="text">
          <string>Optimize around</string>
         </property>
@@ -756,7 +756,7 @@
       </rect>
      </property>
     </widget>
-    <widget class="QPushButton" name="home_p_3">
+    <widget class="QPushButton" name="home_3">
      <property name="geometry">
       <rect>
        <x>70</x>
@@ -782,7 +782,7 @@
       <string>Get angle</string>
      </property>
     </widget>
-    <widget class="QWidget" name="">
+    <widget class="QWidget" name="layoutWidget">
      <property name="geometry">
       <rect>
        <x>70</x>
@@ -800,7 +800,7 @@
        </widget>
       </item>
       <item>
-       <widget class="QSpinBox" name="step_size_3"/>
+       <widget class="QSpinBox" name="step_magnitude_3"/>
       </item>
      </layout>
     </widget>
@@ -876,7 +876,7 @@
      </property>
      <layout class="QHBoxLayout" name="horizontalLayout_6">
       <item>
-       <widget class="QPushButton" name="optimize_all_p_7">
+       <widget class="QPushButton" name="optimize_around_2">
         <property name="text">
          <string>Optimize around</string>
         </property>
@@ -919,7 +919,7 @@
       </item>
      </layout>
     </widget>
-    <widget class="QPushButton" name="home_p_2">
+    <widget class="QPushButton" name="home_2">
      <property name="geometry">
       <rect>
        <x>60</x>
@@ -945,7 +945,7 @@
       <string>Get angle</string>
      </property>
     </widget>
-    <widget class="QWidget" name="">
+    <widget class="QWidget" name="layoutWidget">
      <property name="geometry">
       <rect>
        <x>60</x>
@@ -963,7 +963,7 @@
        </widget>
       </item>
       <item>
-       <widget class="QSpinBox" name="step_size_2"/>
+       <widget class="QSpinBox" name="step_magnitude_2"/>
       </item>
      </layout>
     </widget>
@@ -993,7 +993,7 @@
     </property>
     <layout class="QHBoxLayout" name="horizontalLayout_10">
      <item>
-      <widget class="PlotWidget" name="graph_widget" native="true">
+      <widget class="PlotWidget" name="graph_widget_1" native="true">
        <property name="palette">
         <palette>
          <active>

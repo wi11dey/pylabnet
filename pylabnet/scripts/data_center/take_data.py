@@ -291,8 +291,7 @@ class UpdateThread(QtCore.QThread):
 
 
 def main():
-    control = DataTaker(config='preselected_histogram')
-    control.gui.app.exec_()
+    launch(config = 'data_taker')
 
 def launch(**kwargs):
 

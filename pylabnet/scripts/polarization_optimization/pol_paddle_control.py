@@ -161,7 +161,7 @@ class Controller:
 
             self.widgets['home'][paddle].pressed.connect(self._home(paddle)) #get step and sleep_time
 
-            self.widgets['get angle'][paddle].pressed.connect(self._show_pos(paddle))
+            self.widgets['get_angle'][paddle].pressed.connect(self._show_pos(paddle))
 
             #add optimize around
 
@@ -178,15 +178,17 @@ class Controller:
         """ Functions for devices actions in relation to widget paddle index (from 0)"""
 
     def _home(self, paddle):
-        self.pol.home(self, paddle)
+        self.pol.home(paddle)
 
     def _move_rel(self, paddle, params):
-        self.pol.move_rel(self, paddle, params[14+paddle], params[7])   #get step and sleep_time # self.gui_step, self.gui_sleep_tim
-        self.widgets['step_magnitude'][paddle].setValue(params[14+paddle])
+        index = 14+paddle 
+        self.pol.move_rel(paddle, params[index], params[7])   #get step and sleep_time # self.gui_step, self.gui_sleep_tim
+        self.widgets['step_magnitude'][paddle].setValue(params[index])
         
     def _move(self, paddle, params):
-        self.pol.move(self, paddle, params[11+paddle], params[7])# params11+paddle] = self.gui_pos, params [7] = self.gui_sleep_time
-        self.widgets['move_pos'][paddle].setValue(params[11+paddle]) 
+        index = 11+paddle 
+        self.pol.move(paddle, params[index], params[7]) # params11+paddle] = self.gui_pos, params [7] = self.gui_sleep_time
+        self.widgets['move_pos'][paddle].setValue(params[index]) 
 
     def _get_power(self,params):
         if (str(params[17]) == "channel 1"):
@@ -322,13 +324,8 @@ def launch(**kwargs):
     config = load_script_config(script='pol_paddles',
                         config=kwargs['config'],
                         logger=logger)
-    pol_client = find_client(clients=clients, settings=config, client_type='MPC320', client_config = config, logger = logger) 
-    pm_client = find_client(clients=clients, settings=config, client_type='PM320e',client_config = config, logger = logger)  
-    #settings = load_script_config(   #relevanf for pm_interface to interface other devices rather than only Thorlabs power meter.
-    #'rear_fiber_pol_paddles', #power_meter
-    #kwargs['config'],
-    #logger=logger
-    #)
+    pol_client = find_client(clients=clients, settings=config, client_type= 'thorlabs_mpc320', client_config = config, logger = logger)
+    pm_client = find_client(clients=clients, settings=config, client_type='thorlabs_pm320e' ,client_config = config, logger = logger) 
     #gui_client='pol_paddles'
     pm = pm_client
     #PM_Interface(pm_client, settings)
